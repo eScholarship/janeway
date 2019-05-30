@@ -324,9 +324,11 @@
             </div>
             <div class="content">
                 <small>
+                    {% if article.stage == 'Typesetting' %}
+                    Recommended steps for completing the Production stage:
                     <ol>
                         <li>
-                            Assign a Typesetter {% if production_assignment.typeset_tasks %}
+                            Assign a Typesetter (optional){% if production_assignment.typeset_tasks %}
                             <i style="color: green;" class="fa fa-check-circle info">&nbsp;</i> {% endif %}
                         </li>
                         {% for task in production_assignment.typeset_tasks %}
@@ -335,10 +337,13 @@
                                 <i style="color: green;" class="fa fa-check-circle info">&nbsp;</i> {% endif %}
                             </li>
                         {% endfor %}
-                        <li>Have at lease one Galley {% if article.has_galley %}
+                        <li>Have at lease one Galley file uploaded (required) {% if article.has_galley %}
                             <i style="color: green;" class="fa fa-check-circle info">&nbsp;</i>{% endif %}
                         </li>
                     </ol>
+                    {% else %}
+                    This article is in the {{ article.stage }} stage.
+                    {% endif %}
                 </small>
             </div>
         </div>
@@ -358,7 +363,7 @@
                     {% endif %}
                     <li><a href="{% url 'document_management' article.pk %}?return={{ request.path }}"><i
                             class="fa fa-file-archive-o">&nbsp;</i>Document Management</a></li>
-                    {% if galleys and not production_assignment.closed %}
+                    {% if article.stage == 'Typesetting' and not production_assignment.closed %}
                         <li><a data-open="productionmodal">
                             <i class="fa fa-check action-icon">&nbsp;</i>Mark production as complete
                         </a>
@@ -371,7 +376,7 @@
     </div>
 
     {% include "admin/elements/summary_modal.html" %}
-    {% include "elements/production/complete.html" %}
+    {% if article.stage == 'Typesetting' %}{% include "elements/production/complete.html" %}{% endif %}
 
 {% endblock body %}
 

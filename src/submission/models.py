@@ -619,10 +619,24 @@ class Article(models.Model):
 
     @property
     def local_url(self):
-        identifier = self.identifier
+        from identifiers import models as identifier_models
+        try:
+            identifier = identifier_models.Identifier.objects.get(
+                id_type='pubid',
+                article=self,
+            )
+        except identifier_models.Identifier.DoesNotExist:
+            identifier = identifier_models.Identifier(
+                id_type="id",
+                identifier=self.pk,
+                article=self
+            )
 
-        url = reverse('article_view',
-                      kwargs={'identifier_type': identifier.id_type, 'identifier': identifier.identifier})
+        url = reverse(
+            'article_view',
+            kwargs={'identifier_type': identifier.id_type,
+                    'identifier': identifier.identifier}
+        )
 
         return url
 
@@ -1030,6 +1044,12 @@ class FrozenAuthor(models.Model):
 
     order = models.PositiveIntegerField(default=1)
 
+    is_corporate = models.BooleanField(
+            default=False,
+            help_text="If enabled, the institution and department fields will "
+                "be used as the author full name",
+    )
+
     class Meta:
         ordering = ('order',)
 
@@ -1037,12 +1057,23 @@ class FrozenAuthor(models.Model):
         return self.full_name()
 
     def full_name(self):
-        if self.middle_name:
+        if self.is_corporate:
+            return self.corporate_name
+        elif self.middle_name:
             return u"%s %s %s" % (self.first_name, self.middle_name, self.last_name)
         else:
             return u"%s %s" % (self.first_name, self.last_name)
 
+    @property
+    def corporate_name(self):
+        name = self.institution
+        if self.department:
+            name = "{}, {}".format(self.department, name)
+        return name
+
     def citation_name(self):
+        if self.is_corporate:
+            return self.corporate_name
         first_initial, middle_initial = '', ''
 
         if self.middle_name:

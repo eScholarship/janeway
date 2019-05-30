@@ -3,12 +3,18 @@ __author__ = "Martin Paul Eve & Andy Byers"
 __license__ = "AGPL v3"
 __maintainer__ = "Birkbeck Centre for Technology and Publishing"
 
+from contextlib import ContextDecorator
 from django.utils.six import StringIO
 import sys
 
 from django.core.management import call_command
+from django.utils import translation
+from django.utils.six import StringIO
 
-from core import models as core_models
+from core import (
+        middleware,
+        models as core_models,
+)
 from journal import models as journal_models
 from press import models as press_models
 
@@ -61,7 +67,7 @@ def create_journals():
     out = StringIO()
     sys.stdout = out
 
-    call_command('sync_settings_to_journals', stdout=out)
+    call_command('load_default_settings', stdout=out)
 
     journal_one.name = 'Journal One'
     journal_two.name = 'Journal Two'
@@ -124,3 +130,28 @@ class Request(object):
 
     def get_host(self):
         return 'testserver'
+
+
+class activate_translation(ContextDecorator):
+    def __init__(self, language_code, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.language_code = language_code
+
+    def __enter__(self):
+        translation.activate(self.language_code)
+
+    def __exit__(self, *exc):
+        translation.deactivate()
+
+
+class request_context(ContextDecorator):
+
+    def __init__(self, request, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.request = request
+
+    def __enter__(self):
+        middleware._threadlocal.request = self.request
+
+    def __exit__(self, *exc):
+        middleware._threadlocal.request = None

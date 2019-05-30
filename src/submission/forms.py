@@ -10,6 +10,7 @@ from submission import models
 from core import models as core_models
 from identifiers import models as ident_models
 from review.forms import render_choices
+from utils.forms import KeywordModelForm
 
 
 class PublisherNoteForm(forms.ModelForm):
@@ -55,8 +56,7 @@ class ArticleStart(forms.ModelForm):
             self.fields.pop('comments_editor')
 
 
-class ArticleInfo(forms.ModelForm):
-    keywords = forms.CharField(required=False)
+class ArticleInfo(KeywordModelForm):
 
     class Meta:
         model = models.Article
@@ -152,16 +152,6 @@ class ArticleInfo(forms.ModelForm):
     def save(self, commit=True, request=None):
         article = super(ArticleInfo, self).save(commit=False)
 
-        posted_keywords = self.cleaned_data.get('keywords', '').split(',')
-        for keyword in posted_keywords:
-            if keyword != '':
-                new_keyword, c = models.Keyword.objects.get_or_create(word=keyword)
-                article.keywords.add(new_keyword)
-
-        for keyword in article.keywords.all():
-            if keyword.word not in posted_keywords:
-                article.keywords.remove(keyword)
-
         if request:
             additional_fields = models.Field.objects.filter(journal=request.journal)
 
@@ -244,6 +234,15 @@ class FileDetails(forms.ModelForm):
 
 
 class EditFrozenAuthor(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        instance = kwargs.pop("instance", None)
+        if instance:
+            del self.fields["is_corporate"]
+            if instance.is_corporate:
+                del self.fields["first_name"]
+                del self.fields["middle_name"]
+                del self.fields["last_name"]
 
     class Meta:
         model = models.FrozenAuthor
@@ -254,6 +253,7 @@ class EditFrozenAuthor(forms.ModelForm):
             'institution',
             'department',
             'country',
+            'is_corporate',
         )
 
 

@@ -90,6 +90,9 @@ INSTALLED_APPS = [
     'materialize',
     'snowpenguin.django.recaptcha2',
     'simplemathcaptcha',
+
+    # Forms
+    'django.forms',
 ]
 
 INSTALLED_APPS += plugin_installed_apps.load_plugin_apps(BASE_DIR)
@@ -155,6 +158,8 @@ TEMPLATES = [
     },
 ]
 
+FORM_RENDERER = 'django.forms.renderers.TemplatesSetting'
+
 SETTINGS_EXPORT = [
     'ORCID_API_URL',
     'ORCID_TOKEN_URL',
@@ -182,7 +187,7 @@ if os.environ.get("DB_VENDOR") == "postgres":
             'PORT': os.environ["DB_PORT"],
         }
     }
-elif os.environ.get("DB_VENDOR") == "mysql":
+elif os.environ.get("DB_VENDOR") in {"mysql", "mariadb"}:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
@@ -191,7 +196,10 @@ elif os.environ.get("DB_VENDOR") == "mysql":
             'PASSWORD': os.environ["DB_PASSWORD"],
             'HOST': os.environ["DB_HOST"],
             'PORT': os.environ["DB_PORT"],
-            'OPTIONS': {'init_command': 'SET default_storage_engine=INNODB'},
+            'OPTIONS': {
+                'init_command': 'SET default_storage_engine=INNODB',
+                'charset': 'utf8mb4',
+            },
         }
     }
 else:

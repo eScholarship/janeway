@@ -33,10 +33,10 @@ from core.model_utils import AbstractSiteModel
 from review import models as review_models
 from copyediting import models as copyediting_models
 from submission import models as submission_models
+from utils import setting_handler
 
 fs = JanewayFileSystemStorage()
 logger = logging.getLogger(__name__)
-
 
 
 def profile_images_upload_path(instance, filename):
@@ -545,17 +545,33 @@ class Setting(models.Model):
     def __repr__(self):
         return u'%s' % self.name
 
+    @property
+    def default_setting_value(self):
+        return SettingValue.objects.language("en").get(
+            setting=self,
+            journal=None,
+    )
+
 
 class SettingValue(TranslatableModel):
-    journal = models.ForeignKey('journal.Journal')
+    journal = models.ForeignKey('journal.Journal', null=True, blank=True)
     setting = models.ForeignKey(Setting)
 
     translations = TranslatedFields(
         value=models.TextField(null=True, blank=True)
     )
 
+    class Meta:
+        unique_together = (
+                ("journal", "setting"),
+        )
+
     def __repr__(self):
-        return "[{0}]: {1}, {2}".format(self.journal.code, self.setting.name, self.value)
+        if self.journal:
+            code = self.journal.code
+        else:
+            code = "default"
+        return "[{0}]: {1}, {2}".format(code, self.setting.name, self.value)
 
     def __str__(self):
         return "[{0}]: {1}".format(self.journal, self.setting.name)
@@ -583,6 +599,34 @@ class SettingValue(TranslatableModel):
             return json.loads(self.value)
         else:
             return self.value
+
+    @property
+    def render_value(self):
+        """ Converts string values of settings to values for rendering
+
+        :return: a value
+        """
+        if self.setting.types == 'boolean' and not self.value:
+            return "off"
+        elif self.setting.types == 'boolean':
+            return "on"
+        elif self.setting.types == 'file':
+            if self.journal:
+                return self.journal.site_url(
+                        reverse("journal_file",self.value))
+            else:
+                return self.press.site_url(
+                        reverse("serve_press_file", self.value))
+        else:
+            return self.value
+
+    @property
+    def press(self):
+        if self.journal:
+            return self.journal.press
+        else:
+            from press.models import Press
+            return Press.objects.all()[0]
 
 
 class File(models.Model):
@@ -651,6 +695,21 @@ class File(models.Model):
         if self.article_id:
             return os.path.join(settings.BASE_DIR, 'files', 'articles', str(self.article_id), str(self.uuid_filename))
 
+    def url(self):
+        from core.middleware import GlobalRequestMiddleware
+        request = GlobalRequestMiddleware.get_current_request()
+        url_kwargs = {'file_id': self.pk}
+
+        if request.journal and self.article_id:
+            raise NotImplementedError
+        elif request.journal:
+            raise NotImplementedError
+        else:
+            return reverse(
+                'serve_press_file',
+                kwargs=url_kwargs,
+            )
+
     def get_file(self, article):
         return files.get_file(self, article)
 
@@ -693,12 +752,29 @@ class File(models.Model):
         if article:
             file_elements = os.path.splitext(self.original_filename)
             extension = file_elements[-1]
-            author_surname = article.correspondence_author.last_name if article.correspondence_author else \
-                article.frozen_authors()[0].last_name
-            file_name = '{code}-{pk}-{surname}{extension}'.format(code=article.journal.code,
-                                                                  pk=article.pk,
-                                                                  surname=author_surname,
-                                                                  extension=extension)
+
+            if article.frozen_authors():
+                author_surname = "-{0}".format(
+                    article.frozen_authors()[0].last_name,
+                )
+            elif article.correspondence_author:
+                author_surname = "-{0}".format(
+                    article.correspondence_author.last_name,
+                )
+            else:
+                logger.warning(
+                    'Article {pk} has no author records'.format(
+                        pk=article.pk
+                    )
+                )
+                author_surname = ''
+
+            file_name = '{code}-{pk}{surname}{extension}'.format(
+                code=article.journal.code,
+                pk=article.pk,
+                surname=author_surname,
+                extension=extension
+            )
             return file_name.lower()
         else:
             return self.original_filename
@@ -1090,7 +1166,7 @@ class LoginAttempt(models.Model):
 
 
 @receiver(post_save, sender=Account)
-def setup_default_workflow(sender, instance, created, **kwargs):
+def setup_user_signature(sender, instance, created, **kwargs):
     if created and not instance.signature:
         instance.signature = instance.full_name()
         instance.save()

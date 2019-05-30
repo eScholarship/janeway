@@ -13,7 +13,7 @@ import os
 from django.conf import settings
 from django.db import models, transaction
 from django.db.models.signals import post_save, m2m_changed
-
+from django.utils.safestring import mark_safe
 from django.dispatch import receiver
 from django.urls import reverse
 from django.utils import timezone
@@ -75,6 +75,7 @@ class Journal(AbstractSiteModel):
     favicon = models.ImageField(upload_to=cover_images_upload_path, null=True, blank=True, storage=fs)
     description = models.TextField(null=True, blank=True, verbose_name="Journal Description")
     contact_info = models.TextField(null=True, blank=True, verbose_name="Contact Information")
+    keywords = models.ManyToManyField("submission.Keyword", blank=True, null=True)
 
     disable_metrics_display = models.BooleanField(default=False)
     disable_article_images = models.BooleanField(default=False)
@@ -101,10 +102,10 @@ class Journal(AbstractSiteModel):
     nav_review = models.BooleanField(default=True)
     nav_sub = models.BooleanField(default=True)
 
-    # Boolean to determine if this journal has XSLT file
+    # Boolean to determine if this journal has an XSLT file
     has_xslt = models.BooleanField(default=False)
 
-    # Boolean to determine if this journal should be hdden from the press
+    # Boolean to determine if this journal should be hidden from the press
     hide_from_press = models.BooleanField(default=False)
 
     # Display sequence on the Journals page
@@ -115,6 +116,12 @@ class Journal(AbstractSiteModel):
         press_name = press_models.Press.get_press(None).name
     except BaseException:
         press_name = ''
+
+    # Issue Display
+    display_issue_volume = models.BooleanField(default=True)
+    display_issue_number = models.BooleanField(default=True)
+    display_issue_year = models.BooleanField(default=True)
+    display_issue_title = models.BooleanField(default=True)
 
     def __str__(self):
         return u'{0}: {1}'.format(self.code, self.domain)
@@ -202,9 +209,11 @@ class Journal(AbstractSiteModel):
                 path=path,
         )
 
-    def _site_path_url(self, path=""):
+    def _site_path_url(self, path=None):
         request = logic.get_current_request()
         if request and request.journal == self:
+            if not path:
+                path = "/{}".format(self.code)
             return request.build_absolute_uri(path)
         else:
             return self.press.journal_path_url(self, path)
@@ -238,12 +247,17 @@ class Journal(AbstractSiteModel):
                 core_models.AccountRole.objects.filter(role__slug='editor', journal=self)]
 
     def journal_users(self, objects=True):
-        if objects:
-            users = [role.user for role in core_models.AccountRole.objects.filter(journal=self, user__is_active=True)]
-        else:
-            users = [role.user.pk for role in core_models.AccountRole.objects.filter(journal=self, user__is_active=True)]
+        account_roles = core_models.AccountRole.objects.filter(
+            journal=self,
+            user__is_active=True,
+        ).select_related('user')
 
-        return set(users)
+        if objects:
+            users = {role.user for role in account_roles}
+        else:
+            users = {role.user.pk for role in account_roles}
+
+        return users
 
     @cache(300)
     def editorial_groups(self):
@@ -389,7 +403,7 @@ class Issue(models.Model):
     issue = models.IntegerField(default=1)
     issue_title = models.CharField(blank=True, max_length=300)
     date = models.DateTimeField(default=timezone.now)
-    order = models.IntegerField(default=1)
+    order = models.IntegerField(default=0)
     issue_type = models.CharField(max_length=200, blank=False, null=False, default='Issue', choices=ISSUE_TYPES)
     issue_description = models.TextField(blank=True, null=True)
 
@@ -400,17 +414,36 @@ class Issue(models.Model):
     articles = models.ManyToManyField('submission.Article', blank=True, null=True, related_name='issues')
 
     # guest editors
-    guest_editors = models.ManyToManyField('core.Account', blank=True, null=True, related_name='guest_editors')
+    editors = models.ManyToManyField(
+        'core.Account',
+        blank=True,
+        null=True,
+        related_name='guest_editors',
+        through='IssueEditor',
+    )
 
     class Meta:
-        ordering = ('year', 'volume', 'issue', 'title')
+        ordering = ('order', 'year', 'volume', 'issue', 'title')
 
     @property
     def display_title(self):
-        if self.issue_title:
+        if self.issue_type == 'Collection':
             return self.issue_title
-        else:
-            return u'Volume {0}, Issue {1} ({2})'.format(self.volume, self.issue, self.date.year)
+
+        journal = self.journal
+
+        volume = "Volume {}".format(
+            self.volume) if journal.display_issue_volume else ""
+        issue = "Issue {}".format(
+            self.issue) if journal.display_issue_number else ""
+        year = "{}".format(
+            self.date.year) if journal.display_issue_year else ""
+        title = "{}".format(
+            self.issue_title) if journal.display_issue_title else ""
+
+        title_list = [volume, issue, year, title]
+
+        return mark_safe(" &bull; ".join((filter(None, title_list))))
 
     @property
     def manage_issue_list(self):
@@ -481,8 +514,12 @@ class Issue(models.Model):
 
     @property
     def issue_articles(self):
-        # this property should be used to display article ToCs since it enforces visibility of Published items
-        articles = self.articles.filter(stage=submission_models.STAGE_PUBLISHED)
+        # this property should be used to display article ToCs since
+        # it enforces visibility of Published items
+        articles = self.articles.filter(
+            stage=submission_models.STAGE_PUBLISHED,
+            date_published__lte=timezone.now(),
+        )
 
         ordered_list = list()
         for article in articles:
@@ -494,10 +531,18 @@ class Issue(models.Model):
         structure = collections.OrderedDict()
 
         sections = self.all_sections
-        articles = self.articles.all()
+        articles = self.articles.filter(
+            stage=submission_models.STAGE_PUBLISHED,
+            date_published__lte=timezone.now(),
+        )
 
         for section in sections:
-            article_with_order = ArticleOrdering.objects.filter(issue=self, section=section)
+            article_with_order = ArticleOrdering.objects.filter(
+                issue=self,
+                section=section,
+                article__stage=submission_models.STAGE_PUBLISHED,
+                article__date_published__lte=timezone.now(),
+            )
 
             article_list = list()
             for order in article_with_order:
@@ -584,6 +629,19 @@ class IssueGalley(models.Model):
     @property
     def path_parts(self):
         return self.FILES_PATH, self.issue.pk
+
+
+class IssueEditor(models.Model):
+    account = models.ForeignKey('core.Account')
+    issue = models.ForeignKey(Issue)
+    role = models.CharField(max_length=255, default='Guest Editor')
+
+    def __str__(self):
+        return "{user} {role}".format(
+            user=self.account.full_name(),
+            role=self.role,
+        )
+
 
 class SectionOrdering(models.Model):
     section = models.ForeignKey('submission.Section')
