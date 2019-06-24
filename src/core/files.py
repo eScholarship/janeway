@@ -328,7 +328,7 @@ def render_xml(file_to_render, article, galley=None):
         return transform(etree.XML(xml_string))
 
 
-def serve_any_file(request, file_to_serve, public=False, *path_parts):
+def serve_any_file(request, file_to_serve, public=False, path_parts=()):
     # TODO: should rename to serve_file and the latter to serve_article_file
     # Or removed
     file_path = os.path.join(
@@ -354,7 +354,13 @@ def serve_file(request, file_to_serve, article, public=False):
     :return: a StreamingHttpResponse object with the requested file or an HttpResponseRedirect if there is an IO or
     permission error
     """
-    return serve_any_file(request, file_to_serve, public, 'articles', article.id)
+    path_parts = ('articles', article.pk)
+    return serve_any_file(
+        request,
+        file_to_serve,
+        public,
+        path_parts=path_parts
+    )
 
 
 @cache_control(max_age=600)
@@ -494,7 +500,7 @@ def create_file_history_object(file_to_replace):
     file_to_replace.history.add(new_file)
 
 
-def overwrite_file(uploaded_file, file_to_replace, *path_parts):
+def overwrite_file(uploaded_file, file_to_replace, path_parts=()):
 
     create_file_history_object(file_to_replace)
     original_filename = str(uploaded_file.name)
@@ -608,7 +614,8 @@ def save_file_to_journal(request, file_to_handle, label, description, xslt=False
     return new_file
 
 
-def save_file(request, file_to_handle, label=None, public=False, *path_parts):
+def save_file(request, file_to_handle, label=None, public=False,
+              path_parts=()):
     original_filename = str(file_to_handle.name)
     filename = str(uuid4()) + str(os.path.splitext(original_filename)[1])
     folder_structure = os.path.join(

@@ -6,12 +6,12 @@ __maintainer__ = "Birkbeck Centre for Technology and Publishing"
 
 from operator import itemgetter
 import collections
-import logging
 import uuid
 import os
 
 from django.conf import settings
 from django.db import models, transaction
+from django.db.models import OuterRef, Subquery, Value
 from django.db.models.signals import post_save, m2m_changed
 from django.utils.safestring import mark_safe
 from django.dispatch import receiver
@@ -27,8 +27,11 @@ from core.file_system import JanewayFileSystemStorage
 from core.model_utils import AbstractSiteModel
 from press import models as press_models
 from submission import models as submission_models
-from utils.function_cache import cache
 from utils import setting_handler, logic
+from utils.function_cache import cache
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 # Issue types
 # Use "Issue" for regular issues (rolling or periodic)
@@ -62,7 +65,7 @@ def issue_large_image_path(instance, filename):
 
 
 class Journal(AbstractSiteModel):
-    code = models.CharField(max_length=10)
+    code = models.CharField(max_length=15, unique=True)
     current_issue = models.ForeignKey('Issue', related_name='current_issue', null=True, blank=True,
                                       on_delete=models.SET_NULL)
     carousel = models.OneToOneField('carousel.Carousel', related_name='journal', null=True, blank=True)
@@ -219,7 +222,7 @@ class Journal(AbstractSiteModel):
             return self.press.journal_path_url(self, path)
 
     def full_url(self, request=None):
-        logging.warning("Using journal.full_url is deprecated")
+        logger.warning("Using journal.full_url is deprecated")
         return self.site_url()
 
     def full_reverse(self, request, url_name, kwargs):
@@ -528,6 +531,11 @@ class Issue(models.Model):
         return sorted(ordered_list, key=itemgetter('order'))
 
     def structure(self):
+        # This method is very inefficient and is not used in core anymore
+        # Kept for backwards compatibility with 3rd party themes
+        logger.warning(
+            "Using 'Issue.structure' will be deprecated as of Janeway 1.4"
+        )
         structure = collections.OrderedDict()
 
         sections = self.all_sections
@@ -554,6 +562,38 @@ class Issue(models.Model):
             structure[section] = article_list
 
         return structure
+
+    def get_sorted_articles(self):
+        """ Returns issue articles sorted by section and article order
+
+        Many fields are prefetched and annotated to handle large issues more
+        eficiently. In particular, it annotates relevant SectionOrder and
+        ArticleOrdering rows as section_order and article_order respectively.
+        Returns a Queryset which should keep the memory footprint at a minimum
+        """
+
+        section_order_subquery = SectionOrdering.objects.filter(
+            section=OuterRef("section__pk"),
+            issue=Value(self.pk),
+        ).values_list("order")
+
+        article_order_subquery = ArticleOrdering.objects.filter(
+            section=OuterRef("section__pk"),
+            article=OuterRef("pk"),
+            issue=Value(self.pk),
+        ).values_list("order")
+
+        issue_articles = self.articles.all().prefetch_related(
+            'authors', 'frozenauthor_set',
+            'manuscript_files',
+        ).select_related(
+            'section',
+        ).annotate(
+            section_order=Subquery(section_order_subquery),
+            article_order=Subquery(article_order_subquery),
+        ).order_by("section_order", "article_order")
+
+        return issue_articles
 
     @property
     def article_pks(self):
@@ -618,17 +658,23 @@ class IssueGalley(models.Model):
 
     @transaction.atomic
     def replace_file(self, other):
-        new_file = files.overwrite_file(other, self.file, *self.path_parts)
+        new_file = files.overwrite_file(other, self.file, self.path_parts)
         self.file = new_file
         self.save()
 
     def serve(self, request):
         public = True
-        return files.serve_any_file(request, self.file, public, *self.path_parts)
+        return files.serve_any_file(
+            request,
+            self.file,
+            public,
+            path_parts=self.path_parts,
+        )
 
     @property
     def path_parts(self):
-        return self.FILES_PATH, self.issue.pk
+        path_parts = (self.FILES_PATH, self.issue.pk)
+        return path_parts
 
 
 class IssueEditor(models.Model):

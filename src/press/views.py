@@ -17,6 +17,8 @@ from journal import models as journal_models, views as journal_views, forms as j
 from press import models as press_models, forms
 from security.decorators import press_only
 from submission import models as submission_models
+from utils import install
+from utils.logic import get_janeway_version
 
 
 def index(request):
@@ -67,6 +69,7 @@ def journals(request):
 
     return render(request, template, context)
 
+
 def conferences(request):
     """
     Displays a filterable list of conferences that are not marked as hidden
@@ -84,6 +87,7 @@ def conferences(request):
 
     return render(request, template, context)
 
+
 @staff_member_required
 def manager_index(request):
     """
@@ -93,6 +97,7 @@ def manager_index(request):
     """
     form = journal_forms.JournalForm()
     modal = None
+    version = get_janeway_version()
 
     if request.POST:
         form = journal_forms.JournalForm(request.POST)
@@ -102,6 +107,7 @@ def manager_index(request):
             new_journal.sequence = request.press.next_journal_order()
             new_journal.save()
             call_command('install_plugins')
+            install.update_license(new_journal)
             new_journal.setup_directory()
             return redirect("{0}?journal={1}".format(reverse('core_edit_settings_group', kwargs={'group': 'journal'}),
                                                      new_journal.pk))
@@ -112,7 +118,9 @@ def manager_index(request):
         'form': form,
         'modal': modal,
         'published_articles': submission_models.Article.objects.filter(
-            stage=submission_models.STAGE_PUBLISHED).select_related('journal')[:50]
+            stage=submission_models.STAGE_PUBLISHED
+        ).select_related('journal')[:50],
+        'version': version,
     }
 
     return render(request, template, context)
@@ -183,9 +191,14 @@ def serve_press_file(request, file_id):
     if file.article_id:
         raise Http404
 
-    path_parts = ['press']
+    path_parts = ('press',)
 
-    response = files.serve_any_file(request, file, False, *path_parts)
+    response = files.serve_any_file(
+        request,
+        file,
+        False,
+        path_parts=path_parts,
+    )
 
     return response
 
@@ -204,8 +217,11 @@ def journal_order(request):
 
     for journal in journals:
         sequence = ids.index(journal.pk)
-        journal.sequence = sequence
-        journal.save()
+        journal_models.Journal.objects.filter(
+            pk=journal.pk
+        ).update(
+            sequence=sequence
+        )
 
     return HttpResponse('Thanks')
 

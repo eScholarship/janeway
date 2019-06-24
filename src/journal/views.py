@@ -7,7 +7,6 @@ import json
 import os
 from shutil import copyfile
 from uuid import uuid4
-import logging
 
 from django.conf import settings
 from django.contrib import messages
@@ -38,9 +37,10 @@ from security.decorators import article_stage_accepted_or_later_required, \
     editor_user_required
 from submission import models as submission_models
 from utils import models as utils_models, shared
+from utils.logger import get_logger
 from events import logic as event_logic
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @has_journal
@@ -66,12 +66,18 @@ def home(request):
 
     # call all registered plugin block hooks to get relevant contexts
     for hook in settings.PLUGIN_HOOKS.get('yield_homepage_element_context', []):
-        hook_module = plugin_loader.import_module(hook.get('module'))
-        function = getattr(hook_module, hook.get('function'))
-        element_context = function(request, homepage_elements)
+        try:
+            hook_module = plugin_loader.import_module(hook.get('module'))
+            function = getattr(hook_module, hook.get('function'))
+            element_context = function(request, homepage_elements)
 
-        for k, v in element_context.items():
-            context[k] = v
+            for k, v in element_context.items():
+                context[k] = v
+        except utils_models.Plugin.DoesNotExist as e:
+            if settings.DEBUG:
+                logger.debug(e)
+            else:
+                pass
 
     return render(request, template, context)
 
@@ -172,8 +178,10 @@ def current_issue(request, show_sidebar=True):
 
 @has_journal
 def issue(request, issue_id, show_sidebar=True):
-    """ Renders a specific issue in the journal.
+    """ Renders a specific issue/collection in the journal.
 
+    It also returns all the other issues/collections in the journal
+    for building a navigation menu
     :param request: the request associated with this call
     :param issue_id: the ID of the issue to render
     :param show_sidebar: whether or not to show the sidebar of issues
@@ -183,20 +191,22 @@ def issue(request, issue_id, show_sidebar=True):
         models.Issue.objects.prefetch_related('editors'),
         pk=issue_id,
         journal=request.journal,
-        issue_type='Issue',
         date__lte=timezone.now(),
     )
-    articles = issue_object.articles.all().order_by(
-        'section',
-        'page_numbers').prefetch_related(
-        'authors', 'frozenauthor_set',
-        'manuscript_files').select_related(
-        'section',
-    )
+
+    page = request.GET.get("page", 1)
+    paginator = Paginator(issue_object.get_sorted_articles(), 50)
+
+    try:
+        articles = paginator.page(page)
+    except PageNotAnInteger:
+        articles = paginator.page(1)
+    except EmptyPage:
+        articles = paginator.page(paginator.num_pages)
 
     issue_objects = models.Issue.objects.filter(
         journal=request.journal,
-        issue_type='Issue',
+        issue_type=issue_object.issue_type,
     )
 
     editors = models.IssueEditor.objects.filter(
@@ -207,7 +217,8 @@ def issue(request, issue_id, show_sidebar=True):
     context = {
         'issue': issue_object,
         'issues': issue_objects,
-        'structure': issue_object.structure(),
+        'structure': issue_object.structure,  # for backwards compatibility
+        'articles': articles,
         'editors': editors,
         'show_sidebar': show_sidebar,
     }
@@ -235,29 +246,14 @@ def collections(request):
 @has_journal
 def collection(request, collection_id, show_sidebar=True):
     """
-    Displays a single collection.
+    A proxy view for an issue of type `Collection`.
     :param request: request object
     :param collection_id: primary key of an Issue object
     :param show_sidebar: boolean
     :return: a rendered template
     """
 
-    collection = get_object_or_404(models.Issue, journal=request.journal, issue_type='Collection', pk=collection_id)
-    collections = models.Issue.objects.filter(journal=request.journal, issue_type='Collection')
-
-    articles = collection.articles.all().order_by(
-        'section', 'page_numbers').prefetch_related('authors', 'manuscript_files').select_related('section')
-
-    template = 'journal/issue.html'
-    context = {
-        'issue': collection,
-        'issues': collections,
-        'structure': collection.structure(),
-        'show_sidebar': show_sidebar,
-        'collection': True,
-    }
-
-    return render(request, template, context)
+    return issue(request, collection_id, show_sidebar)
 
 
 @article_exists
@@ -487,8 +483,7 @@ def replace_article_file(request, identifier_type, identifier, file_id):
             files.overwrite_file(
                     uploaded_file,
                     file_to_replace,
-                    'articles',
-                    article_to_replace.pk,
+                    ('articles', article_to_replace.pk),
             )
 
         return redirect(request.GET.get('return', 'core_dashboard'))
@@ -998,11 +993,11 @@ def issue_galley(request, issue_id, delete=False):
                 issue_galley.replace_file(uploaded_file)
             except models.IssueGalley.DoesNotExist:
                 file_obj = files.save_file(
-                        request,
-                        uploaded_file,
-                        label=issue.issue_title,
-                        public=False
-                        *(models.IssueGalley.FILES_PATH, issue.pk)
+                    request,
+                    uploaded_file,
+                    label=issue.issue_title,
+                    public=False,
+                    path_parts=(models.IssueGalley.FILES_PATH, issue.pk),
                 )
                 models.IssueGalley.objects.create(
                     file=file_obj,
@@ -1767,7 +1762,8 @@ def document_management(request, article_id):
             prod_logic.save_galley(document_article, request, file, True, 'File for Proofing', is_other=False)
             messages.add_message(request, messages.SUCCESS, 'Proofing file uploaded.')
 
-        return redirect(reverse('document_management', kwargs={'article_id': document_article.pk}))
+        return redirect('{0}?return={1}'.format(reverse('document_management', kwargs={'article_id':document_article.pk}),
+                                        return_url))
 
     template = 'admin/journal/document_management.html'
     context = {

@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.humanize',
+    'django.contrib.sites',
 
     # Installed Apps
     'cms',
@@ -91,6 +92,11 @@ INSTALLED_APPS = [
     'snowpenguin.django.recaptcha2',
     'simplemathcaptcha',
 
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.orcid',
+
     # Forms
     'django.forms',
 ]
@@ -120,6 +126,12 @@ MIDDLEWARE_CLASSES = (
 )
 
 ROOT_URLCONF = 'core.urls'
+
+AUTHENTICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+)
+
 
 TEMPLATES = [
     {
@@ -168,6 +180,7 @@ SETTINGS_EXPORT = [
     'ORCID_URL',
     'ENABLE_ENHANCED_MAILGUN_FEATURES',
     'ENABLE_ORCID',
+    'DEBUG',
 ]
 
 WSGI_APPLICATION = 'core.wsgi.application'
@@ -332,8 +345,8 @@ LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'root': {
-        'level': 'DEBUG' if DEBUG else 'WARNING',
-        'handlers': ['console'],
+        'level': 'DEBUG' if DEBUG else 'INFO',
+        'handlers': ['console', 'log_file'],
     },
     'formatters': {
         'default': {
@@ -358,12 +371,20 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'coloured',
             'stream': 'ext://sys.stdout',
-        }
+        },
+        'log_file': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'maxBytes': 1024*1024*50,  # 50 MB
+            'backupCount': 1,
+            'filename': os.path.join(PROJECT_DIR , 'logs/janeway.log'),
+            'formatter': 'default'
+        },
     },
     'loggers': {
         'django.db.backends': {
             'level': 'WARNING',
-            'handlers': ['console'],
+            'handlers': ['console', 'log_file'],
             'propagate': False,
         },
     },
@@ -474,3 +495,16 @@ if IN_TEST_RUNNER and COMMAND[1:2] != ["--keep-db"]:
     logging.disable(logging.CRITICAL)
     MIGRATION_MODULES = SkipMigrations()
 
+SITE_ID = 1
+
+SOCIALACCOUNT_PROVIDERS = {
+    'orcid': {
+        'BASE_DOMAIN': 'orcid.org',
+        'MEMBER_API': False,
+    }
+}
+
+SOCIALACCOUNT_AUTO_SIGNUP = True
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_UNIQUE_EMAIL = True
+SOCIALACCOUNT_EMAIL_VERIFICATION = "optional"
