@@ -434,9 +434,10 @@ PLUGIN_HOOKS = {}
 NOTIFY_FUNCS = []
 
 ENABLE_ORCID = True
-ORCID_API_URL = 'http://pub.orcid.org/v1.2_rc7/'
-ORCID_URL = 'https://orcid.org/oauth/authorize'
-ORCID_TOKEN_URL = 'https://pub.orcid.org/oauth/token'
+ORCID_API_URL = 'https://api.sandbox.orcid.org/v2.1'
+# ToDo: Change from sandbox when this code is released
+ORCID_URL = 'https://sandbox.orcid.org/oauth/authorize'
+ORCID_TOKEN_URL = 'https://sandbox.orcid.org/oauth/token'
 ORCID_CLIENT_SECRET = ''
 ORCID_CLIENT_ID = ''
 
@@ -499,7 +500,7 @@ SITE_ID = 1
 
 SOCIALACCOUNT_PROVIDERS = {
     'orcid': {
-        'BASE_DOMAIN': 'orcid.org',
+        'BASE_DOMAIN': 'sandbox.orcid.org',
         'MEMBER_API': False,
     }
 }

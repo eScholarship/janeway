@@ -1,0 +1,6 @@
+{% load i18n %}
+<p>{% if request.journal %}{{ request.journal.name }}{% else %}{{ request.press.name }}{% endif %}
+    {% blocktrans with 'https://orcid.org/blog/2017/02/20/whats-so-special-about-signing' as orcid_url %}
+    is collecting your ORCID iD so we can display your work in your ORCID record, making it easy for you to share this trusted information with other systems and profiles. When you click the “Authorize” button, we will ask you to share your iD using an authenticated process: either by registering for an ORCID iD or, if you already have one, by signing into your ORCID account, then granting us permission to get your ORCID iD. We do this to ensure that you are correctly identified and securely connecting your ORCID iD. Learn more about <a target="_blank" href="{{ orcid_url }}">what’s so special about signing in.</a>
+    {% endblocktrans %}
+</p>
