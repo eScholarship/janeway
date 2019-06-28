@@ -4,6 +4,7 @@ __license__ = "AGPL v3"
 __maintainer__ = "Birkbeck Centre for Technology and Publishing"
 
 import json
+from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -16,6 +17,15 @@ from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+
+def orcidUrl(user):
+    """ Get ORCID id from socialaccount
+    :param user object
+    :return: ORCID ID or None
+    """
+    if user and user.socialaccount_set.filter(provider='orcid'):
+        return user.socialaccount_set.filter(provider='orcid')[0].extra_data['orcid-identifier']['uri']
+    return None
 
 def retrieve_tokens(authorization_code, site):
     """ Retrieves the access token from ORCID service for the given code
@@ -111,3 +121,10 @@ def form_fields(orcid_id, access_token):
         }
 
     return form_initial
+
+class SocialAccountAdapter(DefaultSocialAccountAdapter):
+    def save_user(self, request, user, form, commit=True):
+        user = super(SocialAccountAdapter, self).save_user(request, user, form)
+        user.add_account_role('author', request.journal)
+        return user
+

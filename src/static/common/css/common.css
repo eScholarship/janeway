@@ -138,3 +138,24 @@
 .orcid-id-logo {
        margin: 0 .5em 0 0;
 }
+
+/* django-allauth (account templates) */
+button {
+  padding: 0.5rem 1rem;
+  border: 1px solid transparent;
+  color: #fff;
+  background-color: #0275d8;
+  border-color: #0275d8;
+  font-size: 1rem;
+  text-align: center;
+}
+
+.primaryAction {
+}
+
+.secondaryAction {
+  color: #292b2c;
+  background-color: #fff;
+  border-color: #ccc;
+}
+

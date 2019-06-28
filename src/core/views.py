@@ -990,6 +990,7 @@ def user_edit(request, user_id):
         'user_to_edit': user,
         'form': form,
         'registration_form': registration_form,
+        'orcid_url': orcid.orcidUrl(user),
         'active': 'update',
     }
     return render(request, template, context)
