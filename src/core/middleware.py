@@ -175,7 +175,7 @@ class PressMiddleware(object):
         elif request.press:
             allowed_urls = [
                 'core_manager', 'core_manager_news', 'core_manager_edit_news', 'core_news_list', 'core_news_item',
-                'news_file_download', 'core_flush_cache', 'core_login', 'core_login_orcid', 'core_register',
+                'news_file_download', 'core_flush_cache', 'core_login', 'core_register',
                 'core_confirm_account', 'core_orcid_registration', 'core_get_reset_token', 'core_reset_password',
                 'core_edit_profile', 'core_logout', 'press_cover_download', 'core_manager_index',
                 'django_summernote-editor', 'django_summernote-upload_attachment', 'cms_index', 'cms_page_new',

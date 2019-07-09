@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% load bootstrap4 %}
 {% load i18n %}
-{% load orcid %}
+{% load socialaccount %}
 {% load recaptcha2 %}
 {% load static from staticfiles %}
 
@@ -28,7 +28,7 @@
                                 <div class="col-md-12">
                                     <div class="card">
                                         <div class="card-block">
-                                            <a class="connect-orcid-link" href="{{ settings.ORCID_URL }}?client_id={{ settings.ORCID_CLIENT_ID }}&response_type=code&scope=/authenticate&redirect_uri={% orcid_redirect_uri %}"><img class="orcid-id-logo" src="{% static "common/img/icons/orcid_16x16.png" %}" width='16' height='16' alt="ORCID iD icon"/>{% trans "Register using ORCID" %}</a><br/>
+                                            <a class="connect-orcid-link" href="{% provider_login_url "orcid" next=request.path %}"><img class="orcid-id-logo" src="{% static "common/img/icons/orcid_16x16.png" %}" width='16' height='16' alt="ORCID iD icon"/>{% trans "Register using ORCID" %}</a><br/>
                                             <a class="help-text" href="#" data-toggle="modal" data-target="#modal-orcid-info">More information about ORCID.</a>
                                         </div>
                                     </div>
@@ -99,3 +99,7 @@
     {% include 'elements/orcid_info.html' %}
 
 {% endblock body %}
+
+{% block js %}
+  <script src="{% static "common/js/orcid_sandbox_signout.js" %}"></script>
+{% endblock %}

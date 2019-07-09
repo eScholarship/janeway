@@ -342,7 +342,7 @@ def preprints_authors(request, article_id):
         search = request.POST.get('author_search_text')
 
         try:
-            search_author = core_models.Account.objects.get(Q(email=search) | Q(orcid=search))
+            search_author = core_models.Account.objects.get(Q(email=search))
             article.authors.add(search_author)
             submission_models.ArticleAuthorOrder.objects.get_or_create(article=article,
                                                                        author=search_author,

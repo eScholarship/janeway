@@ -99,7 +99,11 @@
                                                                 itemprop="author"
                                                                 href="#"
                                                                 {% if author.biography %}data-toggle="author{{ forloop.counter }}{% endif %}"><a
-                itemprop="name" class="author-name">{{ author.full_name }}</a>{% if author.institution %}
+                itemprop="name" class="author-name">{{ author.full_name }}</a>
+            {% if author.orcidUrl %}
+              <img class="orcid-id-logo" src="{% static "common/img/icons/orcid_16x16.png" %}" alt="ORCID iD" /> {{ author.orcidUrl }}
+            {% endif %}
+            {% if author.institution %}
             <span itemprop="worksFor" itemscope
                   itemtype="http://schema.org/CollegeOrUniversity"><span
                     itemprop="name">({{ author.institution }})</span></span>{% endif %}

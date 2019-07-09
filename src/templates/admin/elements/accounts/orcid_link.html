@@ -3,11 +3,12 @@
 {% load static %}
 
 {% if orcid_url %}
-    <a class="connect-orcid-link" target="_blank" href="{{ orcid_url }}"><img class="orcid-id-logo" src="{% static "common/img/icons/orcid_16x16.png" %}" width='16' height='16' alt="ORCID iD icon"/>{{ orcid_url }}</a>
+    <br/><a class="connect-orcid-link" target="_blank" href="{{ orcid_url }}"><img class="orcid-id-logo" src="{% static "common/img/icons/orcid_16x16.png" %}" width='16' height='16' alt="ORCID iD icon"/>{{ orcid_url }}</a>
 {% else %}
     {% if request.user.is_staff is False %}
-        <a class="connect-orcid-link" href="{% provider_login_url "orcid" next=request.path %}"><img class="orcid-id-logo" src="{% static "common/img/icons/orcid_16x16.png" %}" width='16' height='16' alt="ORCID iD icon"/>{% trans "Register or Connect your ORCID iD" %}</a><br/>
+        <br/><a class="connect-orcid-link" href="{% provider_login_url "orcid" next=request.path %}"><img class="orcid-id-logo" src="{% static "common/img/icons/orcid_16x16.png" %}" width='16' height='16' alt="ORCID iD icon"/>{% trans "Register or Connect your ORCID iD" %}</a><br/>
     {% else %}
-        Not stored
+        None
     {% endif %}
 {% endif %}
+<br/><br/>

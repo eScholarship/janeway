@@ -205,7 +205,6 @@ class AuthorForm(forms.ModelForm):
             'twitter': forms.TextInput(attrs={'placeholder': 'Twitter handle'}),
             'linkedin': forms.TextInput(attrs={'placeholder': 'LinkedIn profile'}),
             'impactstory': forms.TextInput(attrs={'placeholder': 'ImpactStory profile'}),
-            'orcid': forms.TextInput(attrs={'placeholder': 'ORCID ID'}),
             'email': forms.TextInput(attrs={'placeholder': 'Email address'}),
 
         }

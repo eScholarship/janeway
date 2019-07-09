@@ -235,6 +235,9 @@
                         <small>
                             {% if not forloop.first %}<br/> {% endif %}
                             {{ author.full_name }}
+                            {% if author.orcidUrl %}
+                                <a href="{{ author.orcidUrl }}" target="_blank" ><img class="orcid-id-logo" src="{% static "common/img/icons/orcid_16x16.png" %}" alt="ORCID iD" /></a>
+                            {% endif %}
                             {% if author.institution %}
                                 <span itemprop="worksFor" itemscope itemtype="http://schema.org/CollegeOrUniversity">
                                     <span itemprop="name">({{ author.institution }})

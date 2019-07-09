@@ -4,6 +4,7 @@ __license__ = "AGPL v3"
 __maintainer__ = "Birkbeck Centre for Technology and Publishing"
 
 import json
+from allauth.account.adapter import DefaultAccountAdapter
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from urllib.parse import urlencode
 
@@ -12,7 +13,7 @@ from django.urls import reverse
 import requests
 from requests.exceptions import HTTPError
 
-from utils import logic
+from utils import logic, setting_handler
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -26,40 +27,6 @@ def orcidUrl(user):
     if user and user.socialaccount_set.filter(provider='orcid'):
         return user.socialaccount_set.filter(provider='orcid')[0].extra_data['orcid-identifier']['uri']
     return None
-
-def retrieve_tokens(authorization_code, site):
-    """ Retrieves the access token from ORCID service for the given code
-
-    :param authorization_code: (str) code provided by ORCID
-    :site: Object implementing the AbstractSiteModel interface
-    :return: ORCID ID or None
-    """
-    redirect_uri = build_redirect_uri(site)
-    access_token_req = {
-        "code": authorization_code,
-        "client_id": settings.ORCID_CLIENT_ID,
-        "client_secret": settings.ORCID_CLIENT_SECRET,
-        "redirect_uri": redirect_uri,
-        "grant_type": "authorization_code",
-    }
-
-    content_length = len(urlencode(access_token_req))
-    access_token_req['content-length'] = str(content_length)
-    base_url = settings.ORCID_TOKEN_URL
-
-    logger.info("Connecting with ORCID on %s" % base_url)
-    r = requests.post(base_url, data=access_token_req)
-    try:
-        r.raise_for_status()
-    except HTTPError as e:
-        logger.error("ORCID request failed: %s" % str(e))
-        access_token = None
-    else:
-        logger.info("OK response from ORCID")
-        access_token = json.loads(r.text)
-
-    return access_token 
-
 
 def build_redirect_uri(site):
     """ builds the landing page for ORCID requests
@@ -122,9 +89,19 @@ def form_fields(orcid_id, access_token):
 
     return form_initial
 
+
 class SocialAccountAdapter(DefaultSocialAccountAdapter):
     def save_user(self, request, user, form, commit=True):
         user = super(SocialAccountAdapter, self).save_user(request, user, form)
-        user.add_account_role('author', request.journal)
+        if request.journal:
+            user.add_account_role('author', request.journal)
         return user
+
+
+class AccountAdapter(DefaultAccountAdapter):
+    def get_from_email(self):
+        if self.request.journal:
+            return setting_handler.get_setting('email', 'from_address', self.request.journal).value
+        else:
+            return self.request.press.main_contact
 

@@ -24,6 +24,9 @@
             <p>{% for author in article.frozen_authors.all %}{% if forloop.last %}
                 {% if article.frozen_authors.all|length > 1 %} and
                 {% endif %}{% endif %}{{ author.full_name }}
+                {% if author.orcidUrl %}
+                    <a href="{{ author.orcidUrl }}" target="_blank" ><img class="orcid-id-logo" src="{% static "common/img/icons/orcid_16x16.png" %}" alt="ORCID iD" /></a>
+                {% endif %}
                 {% if not forloop.last %}
                     {% if not forloop.counter == article.frozen_authors.all|length|add:-1 %},
                     {% endif %}{% endif %}{% endfor %}

@@ -22,13 +22,13 @@
                 {% csrf_token %}
                 <div class="row">
                     <div class="large-12 columns">
-                        <p>{% trans "Search for a user using email address or ORCiD. If a user is matched, they will be automatically added as an author. This search only returns exact matches." %}</p>
+                        <p>{% trans "Search for a user by email address. If a user is matched, they will be automatically added as an author. This search only returns exact matches." %}</p>
                     </div>
                 </div>
                 <div class="row">
                     <div class="large-8 columns">
                         <input class="form-control" name="author_search_text" style="width: 100%;" value=""
-                               placeholder="{% trans "Search by email address or ORCiD" %}." required>
+                               placeholder="{% trans "Search by email address" %}." required>
                     </div>
                     <div class="large-4 columns">
                         <button class="tiny success button" name="search_authors"><i class="fa fa-search">

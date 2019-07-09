@@ -83,16 +83,6 @@ def user_login(request):
                 messages.info(request, 'Login successful.')
                 logic.clear_bad_login_attempts(request)
 
-                orcid_token = request.POST.get('orcid_token', None)
-                if orcid_token:
-                    try:
-                        token_obj = models.OrcidToken.objects.get(token=orcid_token, expiry__gt=timezone.now())
-                        user.orcid = token_obj.orcid
-                        user.save()
-                        token_obj.delete()
-                    except models.OrcidToken.DoesNotExist:
-                        pass
-
                 if request.GET.get('next'):
                     return redirect(request.GET.get('next'))
                 else:
@@ -123,52 +113,6 @@ def user_login(request):
     template = 'core/login.html'
 
     return render(request, template, context)
-
-
-def user_login_orcid(request):
-    """
-    Allows a user to login with ORCiD
-    :param request: HttpRequest object
-    :return: HttpResponse object
-    """
-    orcid_code = request.GET.get('code', None)
-
-    if orcid_code and django_settings.ENABLE_ORCID:
-        access_token = orcid.retrieve_tokens(
-            orcid_code, request.site_type)
-
-        if access_token:
-            orcid_id = access_token.get("orcid")
-            try:
-                user = models.Account.objects.get(orcid=orcid_id)
-                user.backend = 'django.contrib.auth.backends.ModelBackend'
-                login(request, user)
-
-                if request.GET.get('next'):
-                    return redirect(request.GET.get('next'))
-                else:
-                    messages.info(request, 'Login successful.')
-                    return redirect(reverse('core_dashboard') if request.journal else reverse('website_index'))
-            except models.Account.DoesNotExist:
-                # Set Token and Redirect
-                models.OrcidToken.objects.filter(orcid=orcid_id).delete()
-                expiry = timezone.now() + timedelta(seconds=access_token.get("expires_in"))
-                new_token = models.OrcidToken.objects.create(
-                    orcid=orcid_id, token=access_token.get("access_token"), expiry=expiry)
-                return redirect(reverse('core_orcid_registration', kwargs={'token': new_token.token}))
-        else:
-            messages.add_message(
-                request,
-                messages.WARNING,
-                'Valid ORCiD not returned, please try again, or login with your username and password.'
-            )
-            return redirect(reverse('core_login'))
-    else:
-        messages.add_message(
-            request,
-            messages.WARNING,
-            'No authorisation code provided, please try again or login with your username and password.')
-        return redirect(reverse('core_login'))
 
 
 @login_required
@@ -258,14 +202,7 @@ def register(request):
     :param request: HttpRequest object
     :return: HttpResponse object
     """
-    token, token_obj, orcid_form_fields = request.GET.get('token', None), None, None
-    if token:
-        token_obj = get_object_or_404(models.OrcidToken, token=token)
-        orcid_form_fields = orcid.form_fields(token_obj.orcid, token_obj.token)
-
-    form = forms.RegistrationForm(
-        initial=orcid_form_fields
-    )
+    form = forms.RegistrationForm()
 
     if request.POST:
         form = forms.RegistrationForm(request.POST)
@@ -277,12 +214,7 @@ def register(request):
                 form.add_error('password_1', policy_fail)
 
         if form.is_valid():
-            if token_obj:
-                new_user = form.save(commit=False)
-                new_user.orcid = token_obj.orcid
-                new_user.save()
-            else:
-                new_user = form.save()
+            new_user = form.save()
 
             if request.journal:
                 new_user.add_account_role('author', request.journal)
@@ -295,7 +227,7 @@ def register(request):
     template = 'core/accounts/register.html'
     context = {
         'form': form,
-        'orcid_id': token_obj.orcid if token_obj else None,
+        'orcid_id': None, # ToDo: Add ORCID
     }
 
     return render(request, template, context)

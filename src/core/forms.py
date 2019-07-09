@@ -151,7 +151,7 @@ class EditAccountForm(forms.ModelForm):
 
     class Meta:
         model = models.Account
-        exclude = ('email', 'username', 'activation_code', 'orcid', 
+        exclude = ('email', 'username', 'activation_code', 
                    'email_sent', 'date_confirmed', 'confirmation_code', 
                    'is_active', 'is_staff', 'is_admin', 'date_joined', 
                    'password', 'is_superuser')

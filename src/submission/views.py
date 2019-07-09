@@ -192,7 +192,7 @@ def submit_authors(request, article_id):
             )
         else:
             try:
-                search_author = core_models.Account.objects.get(Q(email=search) | Q(orcid=search))
+                search_author = core_models.Account.objects.get(Q(email=search))
                 article.authors.add(search_author)
                 models.ArticleAuthorOrder.objects.get_or_create(article=article, author=search_author)
                 messages.add_message(request, messages.SUCCESS, '%s added to the article' % search_author.full_name())

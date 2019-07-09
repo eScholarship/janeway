@@ -505,6 +505,7 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
+ACCOUNT_ADAPTER = 'utils.orcid.AccountAdapter'
 SOCIALACCOUNT_ADAPTER = 'utils.orcid.SocialAccountAdapter'
 SOCIALACCOUNT_AUTO_SIGNUP = True
 ACCOUNT_USERNAME_REQUIRED = False

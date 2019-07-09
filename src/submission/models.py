@@ -1083,6 +1083,9 @@ class FrozenAuthor(models.Model):
 
         return '{last} {first}{middle}'.format(last=self.last_name, first=first_initial, middle=middle_initial)
 
+    def orcidUrl(self):
+        return self.author.orcidUrl
+
     def given_names(self):
         if self.middle_name:
             return '{first_name} {middle_name}'.format(first_name=self.first_name, middle_name=self.middle_name)

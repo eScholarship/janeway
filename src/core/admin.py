@@ -28,10 +28,10 @@ class SettingAdmin(admin.ModelAdmin):
 class AccountAdmin(UserAdmin):
     """Displays Account objects in the Django admin interface."""
     list_display = ('username', 'email', 'first_name', 'middle_name', 'last_name', 'institution', 'date_confirmed')
-    search_fields = ('username', 'email', 'first_name', 'middle_name', 'last_name', 'orcid', 'institution', 'biography')
+    search_fields = ('username', 'email', 'first_name', 'middle_name', 'last_name', 'institution', 'biography')
     fieldsets = UserAdmin.fieldsets + (
         (None, {'fields': (
-            'middle_name', 'orcid', 'institution', 'department', 'twitter',
+            'middle_name', 'institution', 'department', 'twitter',
             'linkedin', 'facebook', 'github', 'biography',
             'signature', 'profile_image', 'interest', "preferred_timezone",
         )}),
@@ -117,10 +117,6 @@ class WorkflowLogAdmin(admin.ModelAdmin):
     list_filter = ('element',)
 
 
-class OrcidTokenAdmin(admin.ModelAdmin):
-    list_display = ('token', 'orcid', 'expiry')
-
-
 class SettingGroupAdmin(admin.ModelAdmin):
     list_display = ('name', 'enabled')
     list_filter = ('enabled',)
@@ -199,7 +195,6 @@ admin_list = [
     (models.EditorialGroup, EditorialGroupAdmin),
     (models.EditorialGroupMember, EditorialMemberAdmin),
     (models.PasswordResetToken, PasswordResetAdmin),
-    (models.OrcidToken, OrcidTokenAdmin),
     (models.DomainAlias, DomainAliasAdmin),
     (models.Country, CountryAdmin),
     (models.WorkflowElement, WorkflowElementAdmin),

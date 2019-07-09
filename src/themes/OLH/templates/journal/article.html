@@ -97,6 +97,9 @@
                                                                                                 href="#"
                                                                                                 {% if author.biography %}data-toggle="author{{ forloop.counter }}{% endif %}">
                                             {% if author.author.enable_public_profile %}<a class="profilelink" href="{% url 'core_public_profile' author.author.uuid %}">{{ author.full_name }}</a>{% else %}{{ author.full_name }}{% endif %}
+                                            {% if author.orcidUrl %}
+                                                <a href="{{ author.orcidUrl }}" target="_blank" ><img class="orcid-id-logo" src="{% static "common/img/icons/orcid_16x16.png" %}" alt="ORCID iD" /></a>
+                                            {% endif %}
                                             {% if author.institution %}
                                             <span itemprop="worksFor" itemscope
                                                   itemtype="http://schema.org/CollegeOrUniversity"><span
@@ -260,7 +263,11 @@
                                     <h4>{% trans "Authors" %}</h4>
                                     <ul>
                                         {% for author in article.frozen_authors.all %}
-                                            <li>{{ author.full_name }}</li>
+                                            <li>{{ author.full_name }}
+                                            {% if author.orcidUrl %}
+                                                <a href="{{ author.orcidUrl }}" target="_blank" ><img class="orcid-id-logo" src="{% static "common/img/icons/orcid_16x16.png" %}" alt="ORCID iD" /></a>
+                                            {% endif %}
+                                            </li>
                                         {% endfor %}
                                     </ul>
                                 {% endif %}

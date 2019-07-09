@@ -188,7 +188,6 @@ class Account(AbstractBaseUser, PermissionsMixin):
     salutation = models.CharField(max_length=10, choices=SALUTATION_CHOICES, null=True, blank=True,
                                   verbose_name=_('Salutation'))
     biography = models.TextField(null=True, blank=True, verbose_name=_('Biography'))
-    orcid = models.CharField(max_length=40, null=True, blank=True, verbose_name=_('ORCiD'))
     institution = models.CharField(max_length=1000, verbose_name=_('Institution'))
     department = models.CharField(max_length=300, null=True, blank=True, verbose_name=_('Department'))
     twitter = models.CharField(max_length=300, null=True, blank=True, verbose_name="Twitter Handle")
@@ -424,6 +423,11 @@ class Account(AbstractBaseUser, PermissionsMixin):
         return subjects
 
     @property
+    def orcidUrl(self):
+        socialaccount = self.socialaccount_set.filter(provider='orcid')
+        return socialaccount[0].extra_data['orcid-identifier']['uri'] if socialaccount else None
+
+    @property
     def hypothesis_username(self):
         username = '{pk}{first_name}{last_name}'.format(pk=self.pk,
                                                         first_name=self.first_name,
@@ -433,15 +437,6 @@ class Account(AbstractBaseUser, PermissionsMixin):
 
 def generate_expiry_date():
     return timezone.now() + timedelta(days=1)
-
-
-class OrcidToken(models.Model):
-    token = models.UUIDField(default=uuid.uuid4)
-    orcid = models.CharField(max_length=200)
-    expiry = models.DateTimeField(default=generate_expiry_date, verbose_name='Expires on')
-
-    def __str__(self):
-        return "ORCiD Token [{0}] - {1}".format(self.orcid, self.token)
 
 
 class PasswordResetToken(models.Model):

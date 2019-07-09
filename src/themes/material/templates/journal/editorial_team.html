@@ -21,7 +21,12 @@
                             </div>
                         {% endif %}
                         <div class="card-content" style="min-height: 190px;">
-                            <span class="card-title small-card-title">{{ member.user.full_name }}</span>
+                            <span class="card-title small-card-title">
+                                {{ member.user.full_name }}
+                                {% if member.user.orcidUrl %}
+                                    <a href="{{ member.user.orcidUrl }}" target="_blank" ><img class="orcid-id-logo" src="{% static "common/img/icons/orcid_16x16.png" %}" alt="ORCID iD" /></a>
+                                {% endif %}
+                            </span>
                             <p>
                                 <small>{{ member.user.affiliation }}</small>
                             </p>
