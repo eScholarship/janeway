@@ -28,16 +28,6 @@ def orcidUrl(user):
         return user.socialaccount_set.filter(provider='orcid')[0].extra_data['orcid-identifier']['uri']
     return None
 
-def build_redirect_uri(site):
-    """ builds the landing page for ORCID requests
-    :site: Object implementing the AbstractSiteModel interface
-    :return: (str) Redirect URI for ORCID requests
-    """
-    request = logic.get_current_request()
-    path = reverse("core_login_orcid")
-
-    return request.site_type.site_url(path)
-
 
 def retrieve_record(orcid_id, access_token):
     """ Uses ORCID API to retrieve an ORCID record
@@ -104,4 +94,10 @@ class AccountAdapter(DefaultAccountAdapter):
             return setting_handler.get_setting('email', 'from_address', self.request.journal).value
         else:
             return self.request.press.main_contact
+
+    def get_email_confirmation_redirect_url(self, request):
+        if request.user.is_authenticated and request.journal:
+            return request.journal.site_url()
+        else:
+            super(AccountAdapter, self).get_email_confirmation_redirect_url(request)
 
