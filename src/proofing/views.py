@@ -151,8 +151,15 @@ def proofing_article(request, article_id):
                 proofing_task.round = article.proofingassignment.current_proofing_round()
                 proofing_task.save()
                 proofing_task.galleys_for_proofing.add(*galleys)
-                return redirect(reverse('notify_proofreader', kwargs={'article_id': article.pk,
-                                                                      'proofing_task_id': proofing_task.pk}))
+                return redirect(
+                    reverse(
+                        'notify_proofreader', 
+                        kwargs={
+                            'article_id': article.pk,
+                            'proofing_task_id': proofing_task.pk,
+                        }
+                    )
+                )
 
             # Set the modal to open if this page is not redirected.
             modal = 'add_proofer'
@@ -165,6 +172,66 @@ def proofing_article(request, article_id):
         'modal': modal,
         'user': user if request.POST else None,
         'galleys': galleys if request.POST else None
+    }
+
+    return render(request, template, context)
+
+
+@proofing_manager_for_article_required
+def delete_proofing_round(request, article_id, round_id):
+    """
+    Presents an interface for a PM to delete a proofing round.
+    :param request: HttpRequest object
+    :param article_id: Article object PK
+    :param round_id: Round object PK
+    :return: HttpResponse or HttpRedirect
+    """
+    article = get_object_or_404(
+        submission_models.Article,
+        pk=article_id,
+        journal=request.journal,
+    )
+
+    round = get_object_or_404(
+        models.ProofingRound,
+        pk=round_id,
+        assignment__article=article,
+    )
+
+    proofing_tasks = models.ProofingTask.objects.filter(
+        round=round,
+    )
+
+    correction_tasks = models.TypesetterProofingTask.objects.filter(
+        proofing_task__in=proofing_tasks,
+    )
+
+    if request.POST:
+        round.delete_round_relations(
+            request,
+            article,
+            proofing_tasks,
+            correction_tasks,
+        )
+        logic.delete_round(article, round)
+        messages.add_message(
+            request,
+            messages.INFO,
+            'Proofing Round Deleted',
+        )
+        return redirect(
+            reverse(
+                'proofing_article',
+                kwargs={'article_id': article.pk}
+            )
+        )
+
+    template = 'proofing/delete_proofing_round.html'
+    context = {
+        'article': article,
+        'round': round,
+        'proofing_tasks': proofing_tasks,
+        'correction_tasks': correction_tasks,
     }
 
     return render(request, template, context)

@@ -4,6 +4,7 @@
 {% load static from staticfiles %}
 {% load foundation %}
 {% load roles %}
+{% load render_string %}
 
 {% block title %}Proofing - {{ article.pk }}{% endblock title %}
 {% block title-section %}Proofing{% endblock %}
@@ -32,6 +33,9 @@
                         <div class="title-area">
                             <h2>Proofreading Tasks</h2>
                             {% if forloop.first %}
+                                <a href="{% url 'delete_proofing_round' article.pk round.pk %}" class="button">
+                                    Delete Round
+                                </a>
                                 <a href="#" data-open="add_round" class="button">
                                     Add New Round
                                 </a>
@@ -53,7 +57,7 @@
                                 {% for task in round.proofingtask_set.all %}
                                     <tr>
                                         <td>{{ task.id }}</td>
-                                        <td>{{ task.proofreader.full_name }}</td>
+                                        <td>{{ task.proofreader.full_name }} <a onclick="return popitup('{% url 'send_user_email_article' task.proofreader.pk article.pk %}')"><i class="fa fa-envelope">&nbsp;</i></a></td>
                                         <td>{{ task.assigned|date:"Y-m-d" }}</td>
                                         <td>{{ task.due|date:"Y-m-d" }}</td>
                                         <td>{{ task.status.friendly }}</td>
@@ -108,7 +112,7 @@
                                 {% for task in round.typeset_tasks %}
                                     <tr>
                                         <td>{{ task.pk }}</td>
-                                        <td>{{ task.typesetter.full_name }}</td>
+                                        <td>{{ task.typesetter.full_name }} <a onclick="return popitup('{% url 'send_user_email_article' task.typesetter.pk article.pk %}')"><i class="fa fa-envelope">&nbsp;</i></a></td>
                                         <td>{{ task.assigned|date:"Y-m-d" }}</td>
                                         <td>{{ task.due|date:"Y-m-d" }}</td>
                                         <td>
@@ -237,20 +241,38 @@
     </div>
 
     <div class="large-4 columns box">
-        <div class="title-area">
-            <h2>Actions</h2>
+        <div class="box">
+            <div class="title-area">
+                <h2>Status</h2>
+            </div>
+            <div class="content">
+                <small>
+                    This article is in the {{ article.stage }} stage.
+                </small>
+            </div>
+            <div class="title-area">
+                <h2>Steps</h2>
+            </div>
+            <div class="content">
+                <ol><li>Select˙proofreaders˙for˙this proofing˙round.</li><li>Once˙proofing˙is˙completed˙decide:<ul><li>Request changes (sends the article back to the typesetter)</li><li>Acknowledge the task</li></ul></li><li>(optional) If changes have been requested you may want to start a new round of Proofing and move to 1.</li><li>Finally, click "Complete proofing"</li></ol>
+            {% render_string journal_settings.general.proofing_steps %}</div>
         </div>
-        <div class="content">
-            <ul class="menu vertical actions">
-                <li><a data-open="summarymodal"><i class="fa fa-server action-icon">&nbsp;</i>View Metadata</a></li>
-                <li><a href="{% url 'document_management' article.pk %}?return={{ request.path }}"><i class="fa fa-file-archive-o">&nbsp;</i>Document Management</a></li>
-                {% user_has_role request 'production_manager' as user_is_production_manager %}
-                {% if user_is_production_manager %}<li><a href="{% url 'production_article' article.pk %}"><i class="fa fa-files-o action-icon">&nbsp;</i>Manage Galleys</a></li>{% endif %}
-                <li><a href="{% url 'complete_proofing' article.pk %}"><i class="fa fa-check action-icon">&nbsp;</i>Complete Proofing</a></li>
-                {% if article.has_galley and production_assignment.typeset_tasks and not production_assignment.closed %}
-                    <li><a data-open="productionmodal"><i class="fa fa-">&nbsp;</i>Mark production as complete</a></li>
-                {% endif %}
-            </ul>
+        <div class="box">
+            <div class="title-area">
+                <h2>Actions</h2>
+            </div>
+            <div class="content">
+                <ul class="menu vertical actions">
+                    <li><a data-open="summarymodal"><i class="fa fa-server action-icon">&nbsp;</i>View Metadata</a></li>
+                    <li><a href="{% url 'document_management' article.pk %}?return={{ request.path }}"><i class="fa fa-file-archive-o">&nbsp;</i>Document Management</a></li>
+                    {% user_has_role request 'production_manager' as user_is_production_manager %}
+                    {% if user_is_production_manager %}<li><a href="{% url 'production_article' article.pk %}"><i class="fa fa-files-o action-icon">&nbsp;</i>Manage Galleys</a></li>{% endif %}
+                    <li><a href="{% url 'complete_proofing' article.pk %}"><i class="fa fa-check action-icon">&nbsp;</i>Complete Proofing</a></li>
+                    {% if article.has_galley and production_assignment.typeset_tasks and not production_assignment.closed %}
+                        <li><a data-open="productionmodal"><i class="fa fa-">&nbsp;</i>Mark production as complete</a></li>
+                    {% endif %}
+                </ul>
+            </div>
         </div>
     </div>
 

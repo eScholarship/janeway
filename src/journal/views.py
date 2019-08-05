@@ -147,6 +147,7 @@ def articles(request):
         'sort': sort,
         'show': show,
         'active_filters': active_filters,
+        'search_form': forms.SearchForm(),
     }
     return render(request, template, context)
 
@@ -1308,11 +1309,11 @@ def manage_archive_article(request, article_id):
 
         if 'xml' in request.POST:
             for uploaded_file in request.FILES.getlist('xml-file'):
-                production_logic.save_galley(article, request, uploaded_file, True, "XML", False)
+                production_logic.save_galley(article, request, uploaded_file, True, "XML")
 
         if 'pdf' in request.POST:
             for uploaded_file in request.FILES.getlist('pdf-file'):
-                production_logic.save_galley(article, request, uploaded_file, True, "PDF", False)
+                production_logic.save_galley(article, request, uploaded_file, True, "PDF")
 
         if 'delete_note' in request.POST:
             note_id = int(request.POST['delete_note'])
@@ -1337,7 +1338,7 @@ def manage_archive_article(request, article_id):
 
         if 'other' in request.POST:
             for uploaded_file in request.FILES.getlist('other-file'):
-                production_logic.save_galley(article, request, uploaded_file, True, "Other", True)
+                production_logic.save_galley(article, request, uploaded_file, True, "Other")
 
         return redirect(reverse('manage_archive_article', kwargs={'article_id': article.pk}))
 
@@ -1638,6 +1639,47 @@ def resend_logged_email(request, article_id, log_id):
     return render(request, template, context)
 
 
+@has_journal
+@editor_user_required
+def send_user_email(request, user_id, article_id=None):
+    user = get_object_or_404(core_models.Account, pk=user_id)
+    form = forms.EmailForm(
+        initial={'body': '<br/ >{signature}'.format(
+            signature=request.user.signature)},
+    )
+    close = False
+    article = None
+
+    if article_id:
+        article = get_object_or_404(
+            submission_models.Article,
+            pk=article_id
+        )
+
+    if request.POST and 'send' in request.POST:
+        form = forms.EmailForm(request.POST)
+
+        if form.is_valid():
+            logic.send_email(
+                user,
+                form,
+                request,
+                article,
+            )
+            close = True
+
+    template = 'journal/send_user_email.html'
+    context = {
+        'user': user,
+        'close': close,
+        'form': form,
+        'article': article,
+    }
+
+    return render(request, template, context)
+
+
+
 @editor_user_required
 def new_note(request, article_id):
     """
@@ -1759,7 +1801,7 @@ def document_management(request, article_id):
         if 'proof' in request.POST:
             from production import logic as prod_logic
             file = request.FILES.get('proof-file')
-            prod_logic.save_galley(document_article, request, file, True, 'File for Proofing', is_other=False)
+            prod_logic.save_galley(document_article, request, file, True, 'File for Proofing')
             messages.add_message(request, messages.SUCCESS, 'Proofing file uploaded.')
 
         return redirect('{0}?return={1}'.format(reverse('document_management', kwargs={'article_id':document_article.pk}),

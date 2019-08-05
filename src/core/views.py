@@ -25,10 +25,11 @@ from django.core.exceptions import ValidationError
 from django.conf import settings as django_settings
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.contrib.contenttypes.models import ContentType
 import pytz
 
 from core import models, forms, logic, workflow
-from security.decorators import editor_user_required, article_author_required
+from security.decorators import editor_user_required, article_author_required, has_journal
 from submission import models as submission_models
 from review import models as review_models
 from copyediting import models as copyedit_models
@@ -349,6 +350,7 @@ def public_profile(request, uuid):
     return render(request, template, context)
 
 
+@has_journal
 @login_required
 def dashboard(request):
     """
@@ -457,6 +459,7 @@ def dashboard(request):
     return render(request, template, context)
 
 
+@has_journal
 @editor_user_required
 def active_submissions(request):
     template = 'core/active_submissions.html'
@@ -472,6 +475,7 @@ def active_submissions(request):
     return render(request, template, context)
 
 
+@has_journal
 @editor_user_required
 def active_submission_filter(request):
     articles = logic.build_submission_list(request)
@@ -486,6 +490,7 @@ def active_submission_filter(request):
     return HttpResponse(json.dumps({'status': 200, 'html': html}))
 
 
+@has_journal
 @article_author_required
 def dashboard_article(request, article_id):
     """
@@ -561,6 +566,7 @@ def default_settings_index(request):
     """
 
     return settings_index(request)
+
 
 @editor_user_required
 def edit_setting(request, setting_group, setting_name):
@@ -979,14 +985,26 @@ def user_history(request, user_id):
     """
 
     user = get_object_or_404(models.Account, pk=user_id)
+    content_type = ContentType.objects.get_for_model(user)
+    log_entries = util_models.LogEntry.objects.filter(
+        content_type=content_type,
+        object_id=user.pk,
+        is_email=True,
+    )
 
     template = 'core/manager/users/history.html'
     context = {
         'user': user,
-        'review_assignments': review_models.ReviewAssignment.objects.filter(reviewer=user,
-                                                                            article__journal=request.journal),
-        'copyedit_assignments': copyedit_models.CopyeditAssignment.objects.filter(copyeditor=user,
-                                                                                  article__journal=request.journal)
+        'review_assignments': review_models.ReviewAssignment.objects.filter(
+            reviewer=user,
+            article__journal=request.journal,
+        ),
+        'copyedit_assignments':
+            copyedit_models.CopyeditAssignment.objects.filter(
+                copyeditor=user,
+                article__journal=request.journal,
+            ),
+        'log_entries': log_entries,
     }
 
     return render(request, template, context)
@@ -1402,6 +1420,7 @@ def editorial_ordering(request, type_to_order, group_id=None):
     return HttpResponse('Thanks')
 
 
+@has_journal
 @editor_user_required
 def kanban(request):
     """
@@ -1666,6 +1685,7 @@ def pinned_articles(request):
     return render(request, template, context)
 
 
+@has_journal
 @staff_member_required
 def journal_workflow(request):
     """

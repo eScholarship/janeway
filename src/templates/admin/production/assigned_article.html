@@ -3,6 +3,7 @@
 {% load securitytags %}
 {% load hooks %}
 {% load static from staticfiles %}
+{% load render_string %}
 
 {% block title %}Article - {{ article.pk }}{% endblock title %}
 {% block admin-header %}Article - {{ article.pk }}{% endblock %}
@@ -44,18 +45,23 @@
                                         <th>Typesetter</th>
                                         <th>Assigned</th>
                                         <th>Notified</th>
+                                        <th>Due</th>
                                         <th>Status</th>
                                         <th></th>
 
                                     </tr>
                                     <tr>
-                                        <td>{{ task.typesetter.full_name }}</td>
+                                        <td>{{ task.typesetter.full_name }} <a onclick="return popitup('{% url 'send_user_email_article' task.typesetter.pk article.pk %}')"><i class="fa fa-envelope">&nbsp;</i></a></td>
                                         <td>{{ task.assigned|date:"Y-m-d" }}</td>
                                         <td>{% if task.notified %}
-                                            <i style="color: green;" class="fa fa-check-circle info">
-                                                &nbsp;</i>{% else %}
-                                            <i style="color: red;" class="fa fa-times-circle info">&nbsp;</i>{% endif %}
+                                            <i style="color: green;" class="fa fa-check-circle info"></i>
+                                            {% elif task.status == 'assigned' %}
+                                            <a href="{% url 'notify_typesetter_event' task.pk 'false' %}">Send Notification</a>
+                                            {% else %}
+                                            Not sent
+                                            {% endif %}
                                         </td>
+                                        <td>{{ task.due|date:"Y-m-d" }} {% if task.is_overdue %}(Overdue){% endif %}</td>
                                         <td>{{ task.friendly_status|safe }} {% if task.status == 'completed' %}({{ task.completed }}){% endif %}</td>
                                         <td>
                                             <div class="button-group">
@@ -324,28 +330,13 @@
             </div>
             <div class="content">
                 <small>
-                    {% if article.stage == 'Typesetting' %}
-                    Recommended steps for completing the Production stage:
-                    <ol>
-                        <li>
-                            Assign a Typesetter (optional){% if production_assignment.typeset_tasks %}
-                            <i style="color: green;" class="fa fa-check-circle info">&nbsp;</i> {% endif %}
-                        </li>
-                        {% for task in production_assignment.typeset_tasks %}
-                            <li>
-                                Review typesetting task by {{ task.typesetter.full_name }} {% if task.editor_reviewed %}
-                                <i style="color: green;" class="fa fa-check-circle info">&nbsp;</i> {% endif %}
-                            </li>
-                        {% endfor %}
-                        <li>Have at lease one Galley file uploaded (required) {% if article.has_galley %}
-                            <i style="color: green;" class="fa fa-check-circle info">&nbsp;</i>{% endif %}
-                        </li>
-                    </ol>
-                    {% else %}
                     This article is in the {{ article.stage }} stage.
-                    {% endif %}
                 </small>
             </div>
+            <div class="title-area">
+                <h2>Steps</h2>
+            </div>
+            <div class="content">{% render_string journal_settings.general.production_steps %}</div>
         </div>
         <div class="box">
             <div class="title-area">
