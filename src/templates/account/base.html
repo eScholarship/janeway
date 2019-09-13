@@ -7,10 +7,14 @@
         <ul>
           {% if user.is_authenticated %}
           <li><a href="{% url 'account_email' %}">Change E-mail</a></li>
+
+       {% comment "Janeway: Unnecessary links that will simply confuse the process of basic signup/logout" %}
           <li><a href="{% url 'account_logout' %}">Sign Out</a></li>
           {% else %}
           <li><a href="{% url 'account_login' %}">Sign In</a></li>
           <li><a href="{% url 'account_signup' %}">Sign Up</a></li>
+       {% endcomment %}
+
           {% endif %}
         </ul>
       </div>
