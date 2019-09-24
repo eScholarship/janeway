@@ -6,6 +6,8 @@ __maintainer__ = "Birkbeck Centre for Technology and Publishing"
 import json
 from allauth.account.adapter import DefaultAccountAdapter
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
+from allauth.socialaccount import models as social_models
+from core import models as core_models
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -25,73 +27,57 @@ def orcidUrl(user):
     :return: ORCID ID or None
     """
     if user and user.socialaccount_set.filter(provider='orcid'):
-        return user.socialaccount_set.filter(provider='orcid')[0].extra_data['orcid-identifier']['uri']
+        return user.socialaccount_set.filter(provider='orcid')[0].\
+            extra_data['orcid-identifier']['uri']
     return None
 
-
-def retrieve_record(orcid_id, access_token):
-    """ Uses ORCID API to retrieve an ORCID record
-    :param orcid_id: (str) ORCID ID
-    :param acess_token:  (str) code provided by ORCID
-    :return (json) in ORCID API record schema
-    """
-    headers = {
-      'Accept': 'application/json',
-      'Authorization': 'Bearer ' + str(access_token),
-    }
-
-    api_url = settings.ORCID_API_URL
-    logger.info("Reading data from ORCID using %s" % api_url)
-    r = requests.get('%s/%s/record' % (api_url, orcid_id), headers=headers)
-    try:
-        r.raise_for_status()
-    except HTTPError as e:
-        logger.error("ORCID record request failed: %s" % str(e))
-        orcid_record = None
-    else:
-        orcid_record = r.json()
-
-    return orcid_record
-
-
-def form_fields(orcid_id, access_token):
-    """ ORCID fields relevant for Account form
-    :param orcid_id: (str) ORCID ID
-    :param acess_token:  (str) code provided by ORCID
-    :return (dict) form fields
-    """
-    form_initial = None
-    orcid_record = retrieve_record(orcid_id, access_token)
-    if orcid_record:
-        person = orcid_record['person']
-        form_initial = {
-            # ToDo: Filter for primary email
-            'email': person['emails']['email'][0]['email'] \
-                if len(person['emails']['email']) > 0 else '',
-            'first_name': person['name']['given-names']['value'],
-            'last_name': person['name']['family-name']['value'],
-            'department': orcid_record['activities-summary']['employments'] \
-                ['employment-summary'][0]['department-name'],
-            'institution': orcid_record['activities-summary']['employments'] \
-                ['employment-summary'][0]['organization']['name'],
-            'country': person['addresses']['address'][0]['country']['value']
-        }
-
-    return form_initial
-
+def copyOrcidProfileToAccount(user, commit=True):
+    """ Copy ORCID user's data that maps to Janeway profile, from socialaccount
+    table to core_account table, just for those fields that are empty.
+    (Copying the data as opposed to having the user profile form access multiple models)  """
+    social_user = social_models.SocialAccount.objects.filter(user_id=user.id)
+    if social_user and social_user[0]:
+        person = social_user[0].extra_data['person']
+        activities = social_user[0].extra_data['activities-summary']
+        country = person['addresses']['address'][0]['country']['value']
+        try:
+            user.country = core_models.Country.objects.get(name=country) \
+            if user.country == None else user.country
+        except Exception:
+            logger.warning(
+                "Country not found: %s" % country)
+        user.institution = \
+            activities['employments']['employment-summary'][0]['organization']['name'] \
+            if user.institution == None else user.institution
+        user.department = \
+            activities['employments']['employment-summary'][0]['department-name'] \
+            if user.department == None else user.department
+        user.biography = person['biography']['content'] \
+            if user.biography == None else user.biography
+        user.website = person['researcher-urls']['researcher-url'][0]['url']['value'] \
+            if user.website == None else user.website
+        if commit:
+            user.save()
+    return user
 
 class SocialAccountAdapter(DefaultSocialAccountAdapter):
     def save_user(self, request, user, form, commit=True):
-        user = super(SocialAccountAdapter, self).save_user(request, user, form)
+        social_user = social_models.SocialAccount.objects.filter(user_id=user.id)
+        if social_user and social_user[0] and social_user[0].provider == 'orcid':
+            user = copyOrcidProfileToAccount(user, social_user, commit)
+
+        """ Like normal Account, new ORCID users are also automatically given the author role """
         if request.journal:
             user.add_account_role('author', request.journal)
         return user
 
 
 class AccountAdapter(DefaultAccountAdapter):
+    """ ORCID notification emails are sent from this address """
     def get_from_email(self):
         if self.request.journal:
-            return setting_handler.get_setting('email', 'from_address', self.request.journal).value
+            return setting_handler.get_setting('email', 'from_address', \
+                self.request.journal).value
         else:
             return self.request.press.main_contact
 

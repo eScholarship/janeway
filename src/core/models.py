@@ -15,6 +15,7 @@ import pytz
 from bs4 import BeautifulSoup
 from hvad.models import TranslatableModel, TranslatedFields
 from allauth.socialaccount import models as social_models
+from allauth.socialaccount.signals import social_account_added
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
@@ -34,6 +35,7 @@ from core.model_utils import AbstractSiteModel
 from review import models as review_models
 from copyediting import models as copyediting_models
 from submission import models as submission_models
+from utils import orcid
 from utils.logger import get_logger
 
 fs = JanewayFileSystemStorage()
@@ -1171,10 +1173,17 @@ def setup_user_signature(sender, instance, created, **kwargs):
         instance.signature = instance.full_name()
         instance.save()
 
+@receiver(social_account_added)
+def social_account_added_(request, sociallogin, **kwargs):
+    """ When connecting 3rd party ID to an already existing account """
+    if sociallogin.account.provider == 'orcid':
+        """ Copy ORCID info into (local) Account """
+        social_user = social_models.SocialAccount.objects.filter(user_id=sociallogin.user.id)
+        orcid.copyOrcidProfileToAccount(sociallogin.user, social_user, True)
 
 @receiver(post_save, sender=social_models.SocialAccount)
 def social_auth_registration_active(sender, instance, created, **kwargs):
-
+    """ Activate user (local) Account when it's initializd by a social login """
     if created:
         instance.user.is_active = True
         instance.user.save()
