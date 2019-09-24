@@ -31,37 +31,37 @@ def orcidUrl(user):
             extra_data['orcid-identifier']['uri']
     return None
 
-def copyOrcidProfileToAccount(user, commit=True):
+def copyOrcidProfileToAccount(user, social_user, commit=True):
     """ Copy ORCID user's data that maps to Janeway profile, from socialaccount
     table to core_account table, just for those fields that are empty.
     (Copying the data as opposed to having the user profile form access multiple models)  """
-    social_user = social_models.SocialAccount.objects.filter(user_id=user.id)
     if social_user and social_user[0]:
         person = social_user[0].extra_data['person']
         activities = social_user[0].extra_data['activities-summary']
         country = person['addresses']['address'][0]['country']['value']
         try:
             user.country = core_models.Country.objects.get(name=country) \
-            if user.country == None else user.country
+            if not user.country else user.country
         except Exception:
             logger.warning(
                 "Country not found: %s" % country)
         user.institution = \
             activities['employments']['employment-summary'][0]['organization']['name'] \
-            if user.institution == None else user.institution
+            if not user.institution else user.institution
         user.department = \
             activities['employments']['employment-summary'][0]['department-name'] \
-            if user.department == None else user.department
+            if not user.department else user.department
         user.biography = person['biography']['content'] \
-            if user.biography == None else user.biography
+            if not user.biography else user.biography
         user.website = person['researcher-urls']['researcher-url'][0]['url']['value'] \
-            if user.website == None else user.website
+            if not user.website else user.website
         if commit:
             user.save()
     return user
 
 class SocialAccountAdapter(DefaultSocialAccountAdapter):
     def save_user(self, request, user, form, commit=True):
+        user = super(SocialAccountAdapter, self).save_user(request, user, form)
         social_user = social_models.SocialAccount.objects.filter(user_id=user.id)
         if social_user and social_user[0] and social_user[0].provider == 'orcid':
             user = copyOrcidProfileToAccount(user, social_user, commit)
