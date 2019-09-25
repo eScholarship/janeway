@@ -16,13 +16,14 @@
             <div class="card">
                 <div class="card-block">
                     <div class="col-md-12">
-                        {% if settings.ENABLE_ORCID %}
-                        <h2 class="text-center">{% trans "Log in with your account" %}</h2>
                         <p class="text-center">
-                          <a class="connect-orcid-link" href="{% provider_login_url "orcid" next=request.path %}"><img class="orcid-id-logo" src="{% static "common/img/icons/orcid_16x16.png" %}" width='16' height='16' alt="ORCID iD icon"/>{% trans "Register or Connect your ORCID iD" %}</a><br/>
-                          <a class="help-text" href="#" data-toggle="modal" data-target="#modal-orcid-info">{% trans "More information about ORCID." %}</a>
+                            {% if settings.ENABLE_ORCID %}
+                            <a class="connect-orcid-link" href="{% provider_login_url "orcid" next=request.path %}"><img class="orcid-id-logo" src="{% static "common/img/icons/orcid_16x16.png" %}" width='16' height='16' alt="ORCID iD icon"/>{% trans "Connect your ORCID iD" %}</a><br/>
+                            <a class="help-text" href="#" data-toggle="modal" data-target="#modal-orcid-info">{% trans "More information about ORCID." %}</a>
+                            <div class="lines-separator"><span>or</span></div>
+                            {% endif %}
+                            <h2 class="text-center">{% trans "Log in with your account" %}</h2>
                         </p>
-                        {% endif %}
                         <form method="POST">
                             {% include "common/elements/static-error-messages.html" with form=form %}
                             {% csrf_token %}
@@ -32,7 +33,6 @@
                                        class="form-control">
                                 <label>{% trans form.user_pass.label %}</label>
                                 <input type="password" placeholder="Password" name="user_pass" class="form-control">
-                                <br />
                                 {{ form.captcha }}
                             </div>
                             <p>

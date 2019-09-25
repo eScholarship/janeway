@@ -18,6 +18,13 @@
                 {% include "common/elements/static-error-messages.html" with form=form %}
                     {% csrf_token %}
                     <div class="card-content">
+                        {% if settings.ENABLE_ORCID %}
+                        <p class="center-align">
+                            <a class="connect-orcid-link" href="{% provider_login_url "orcid" next=request.path %}"><img class="orcid-id-logo" src="{% static "common/img/icons/orcid_16x16.png" %}" width='16' height='16' alt="ORCID iD icon"/>{% trans "Connect your ORCID iD" %}</a><br/>
+                            <a class="modal-trigger" href="#modal-orcid-info">{% trans "More information about ORCID." %}</a>
+                            <div class="lines-separator"><span>or</span></div>
+                        </p>
+                        {% endif %}
                         <span class="card-title">Login</span>
 
                         <div class="input-field col s12">
@@ -34,13 +41,6 @@
                         <button class="waves-effect waves-light btn wide-button">{% trans "Login" %}</button>
                         <a class="waves-effect waves-light btn wide-button" href="{% url 'core_register' %}">{% trans "Register an Account" %}</a>
                         <a class="waves-effect waves-light btn wide-button" href="{% url 'core_get_reset_token' %}">{% trans "Reset Your Password" %}</a>
-                        {% if settings.ENABLE_ORCID %}
-                        <br/>
-                        <p class="center-align">
-                            <a class="connect-orcid-link" href="{% provider_login_url "orcid" next=request.path %}"><img class="orcid-id-logo" src="{% static "common/img/icons/orcid_16x16.png" %}" width='16' height='16' alt="ORCID iD icon"/>{% trans "Register or Connect your ORCID iD" %}</a><br/>
-                            <a class="modal-trigger" href="#modal-orcid-info">{% trans "More information about ORCID." %}</a>
-                        </p>
-                        {% endif %}
                     </div>
                 </form>
             </div>

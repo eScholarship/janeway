@@ -127,6 +127,20 @@
 }
 
 /* ORCID */
+
+.lines-separator {
+  width: 100%;
+  text-align: center;
+  border-bottom: 1px solid #000;
+  line-height: 0.1em;
+  margin: 20px 0 20px;
+}
+ 
+.lines-separator span {
+  background: #fff;
+  padding: 0 10px;
+}
+
 .connect-orcid-link {
 
 }
@@ -138,6 +152,8 @@
 .orcid-id-logo {
   margin: 0 .5em 0 0;
   width: auto !important;
+  position: relative;
+  z-index: 15;
 }
 
 /* django-allauth (account templates) */

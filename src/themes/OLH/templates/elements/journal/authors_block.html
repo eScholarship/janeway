@@ -7,7 +7,7 @@
         {% endif %}
         {{ author.full_name }}
         {% if author.orcidUrl %}
-            <img class="orcid-id-logo" src="{% static "common/img/icons/orcid_16x16.png" %}" alt="ORCID iD" />
+	    <a href="{{ author.orcidUrl }}" target="_blank" ><img class="orcid-id-logo" src="{% static "common/img/icons/orcid_16x16.png" %}" alt="ORCID iD" /></a>
         {% endif %}
         {% if not forloop.last %}
             {% if not forloop.counter == article.frozenauthor_set.all|length|add:-1 %},

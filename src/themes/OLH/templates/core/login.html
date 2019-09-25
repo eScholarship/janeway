@@ -29,18 +29,18 @@
                 {% csrf_token %}
                 <div class="callout">
                     <div class="row column log-in-form">
-                        {% if settings.ENABLE_ORCID %}
-                        <h4 class="text-center">{% trans "Log in with your account" %}</h4>
                         <p class="text-center">
-                            <a class="connect-orcid-link" href="{% provider_login_url "orcid" next=request.path %}"><img class="orcid-id-logo" src="{% static "common/img/icons/orcid_16x16.png" %}" width='16' height='16' alt="ORCID iD icon"/>{% trans "Register or Connect your ORCID iD" %}</a><br/>
+                            {% if settings.ENABLE_ORCID %}
+                            <a class="connect-orcid-link" href="{% provider_login_url "orcid" next=request.path %}"><img class="orcid-id-logo" src="{% static "common/img/icons/orcid_16x16.png" %}" width='16' height='16' alt="ORCID iD icon"/>{% trans "Connect your ORCID iD" %}</a><br/>
                             <a class="help-text" href="#" data-open="modal-orcid-info">{% trans "More information about ORCID." %}</a>
+                            <div class="lines-separator"><span>or</span></div>
+                            {% endif %}
+                            <h4 class="text-center">{% trans "Log in with your account" %}</h4>
                         </p>
-                        {% endif %}
                         <label>{% trans form.fields.user_name.label %}</label>
                             {{ form.user_name }}
                         <label>{% trans form.user_pass.label %}</label>
                             {{ form.user_pass }}
-                        <br />
                         {{ form.captcha }}
                         <br />
                         <p><button type="submit" class="button expanded">{% trans "Log in" %}</button></p>

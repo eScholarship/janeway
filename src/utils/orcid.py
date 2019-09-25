@@ -38,23 +38,27 @@ def copyOrcidProfileToAccount(user, social_user, commit=True):
     if social_user and social_user[0]:
         person = social_user[0].extra_data['person']
         activities = social_user[0].extra_data['activities-summary']
-        country = person['addresses']['address'][0]['country']['value']
-        try:
-            user.country = core_models.Country.objects.get(name=country) \
-            if not user.country else user.country
-        except Exception:
-            logger.warning(
-                "Country not found: %s" % country)
-        user.institution = \
-            activities['employments']['employment-summary'][0]['organization']['name'] \
-            if not user.institution else user.institution
-        user.department = \
-            activities['employments']['employment-summary'][0]['department-name'] \
-            if not user.department else user.department
-        user.biography = person['biography']['content'] \
-            if not user.biography else user.biography
-        user.website = person['researcher-urls']['researcher-url'][0]['url']['value'] \
-            if not user.website else user.website
+        if person['addresses']['address']:
+            country = person['addresses']['address'][0]['country']['value']
+            try:
+                user.country = core_models.Country.objects.get(name=country) \
+                if not user.country else user.country
+            except Exception:
+                logger.warning(
+                    "Country not found: %s" % country)
+        if activities['employments']['employment-summary']:
+            user.institution = \
+                activities['employments']['employment-summary'][0]['organization']['name'] \
+                if not user.institution else user.institution
+            user.department = \
+                activities['employments']['employment-summary'][0]['department-name'] \
+                if not user.department else user.department
+        if person['researcher-urls']['researcher-url']:
+            user.website = person['researcher-urls']['researcher-url'][0]['url']['value'] \
+                if not user.website else user.website
+        if person['biography'] and person['biography']['content']:
+            user.biography = person['biography']['content'] \
+                if not user.biography else user.biography
         if commit:
             user.save()
     return user
