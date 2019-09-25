@@ -9,6 +9,8 @@
 
 <p>{% blocktrans with provider_name=account.get_provider.name site_name=site.name %}You are about to use your {{provider_name}} account to login to {{site_name}}. Signing up as a user requires that you provide your email address so that we can notify you about your activity and to receive requests from other users of this journal.{% endblocktrans %}</p>
 
+<p><i>{% blocktrans with provider_name=account.get_provider.name %}The reason you are being asked to provide your email address is because your email has not been made public in your {{provider_name}} profile.{% endblocktrans %}</i></p>
+
 <form class="signup" id="signup_form" method="post" action="{% url 'socialaccount_signup' %}">
   {% csrf_token %}
   {{ form.as_p }}
