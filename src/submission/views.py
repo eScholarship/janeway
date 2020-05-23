@@ -3,7 +3,6 @@ __author__ = "Martin Paul Eve & Andy Byers"
 __license__ = "AGPL v3"
 __maintainer__ = "Birkbeck Centre for Technology and Publishing"
 
-
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
@@ -14,11 +13,14 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 
 from core import files, models as core_models
-from preprint import models as preprint_models
-from security.decorators import article_edit_user_required, production_user_or_editor_required, editor_user_required
+from repository import models as preprint_models
+from security.decorators import (
+    article_edit_user_required,
+    production_user_or_editor_required,
+    editor_user_required,
+)
 from submission import forms, models, logic, decorators
 from events import logic as event_logic
-from identifiers import models as identifier_models
 from utils import setting_handler
 from utils import shared as utils_shared
 
@@ -27,7 +29,8 @@ from utils import shared as utils_shared
 @decorators.submission_is_enabled
 def start(request, type=None):
     """
-    Starts the submission process, presents various checkboxes and then creates a new article.
+    Starts the submission process, presents various checkboxes
+    and then creates a new article.
     :param request: HttpRequest object
     :param type: string, None or 'preprint'
     :return: HttpRedirect or HttpResponse
@@ -183,11 +186,11 @@ def submit_authors(request, article_id):
 
     elif request.POST and 'search_authors' in request.POST:
         search = request.POST.get('author_search_text', None)
-        
+
         if not search:
             messages.add_message(
-                request, 
-                messages.WARNING, 
+                request,
+                messages.WARNING,
                 'An empty search is not allowed.'
             )
         else:
