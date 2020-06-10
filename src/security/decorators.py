@@ -994,6 +994,7 @@ def preprint_editor_or_author_required(func):
         preprint = get_object_or_404(
             preprint_models.Preprint,
             pk=kwargs['preprint_id'],
+            repository=request.repository
         )
 
         if request.user in preprint.authors or request.user.is_staff:
@@ -1018,9 +1019,13 @@ def is_article_preprint_editor(func):
         if not base_check(request):
             return redirect('{0}?next={1}'.format(reverse('core_login'), request.path_info))
 
-        article = get_object_or_404(models.Article.preprints, pk=kwargs['article_id'])
+        preprint = get_object_or_404(
+            preprint_models.Preprint,
+            pk=kwargs['preprint_id'],
+            repository=request.repository
+        )
 
-        if request.user in article.subject_editors() or request.user.is_staff:
+        if request.user in preprint.subject_editors() or request.user.is_staff:
             return func(request, *args, **kwargs)
 
         deny_access(request)
