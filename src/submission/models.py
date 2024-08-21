@@ -1161,6 +1161,22 @@ class Article(AbstractLastModifiedModel):
             for_author_consumption=True,
         )
 
+    @property
+    def date_archived(self):
+        # Return early if the article is not actually archived.
+        if self.stage != STAGE_ARCHIVED:
+            return None
+
+        log_entry = ArticleStageLog.objects.filter(
+            article=self,
+            stage_to='Archived',
+        ).first()
+
+        if log_entry:
+            return log_entry.date_time
+
+        return None
+
     def __str__(self):
         return u'%s - %s' % (self.pk, truncatesmart(self.title))
 
