@@ -1389,69 +1389,69 @@ class Notifications(models.Model):
 
 # Signals
 
-@receiver(post_save, sender=Journal)
-def setup_default_section(sender, instance, created, **kwargs):
-    if created:
-        with translation.override(settings.LANGUAGE_CODE):
-            submission_models.Section.objects.get_or_create(
-                journal=instance,
-                number_of_reviewers=2,
-                name='Article',
-                plural='Articles'
-            )
+# @receiver(post_save, sender=Journal)
+# def setup_default_section(sender, instance, created, **kwargs):
+#     if created:
+#         with translation.override(settings.LANGUAGE_CODE):
+#             submission_models.Section.objects.get_or_create(
+#                 journal=instance,
+#                 number_of_reviewers=2,
+#                 name='Article',
+#                 plural='Articles'
+#             )
 
 
-@receiver(post_save, sender=Journal)
-def setup_default_workflow(sender, instance, created, **kwargs):
-    if created:
-        workflow.create_default_workflow(instance)
+# @receiver(post_save, sender=Journal)
+# def setup_default_workflow(sender, instance, created, **kwargs):
+#     if created:
+#         workflow.create_default_workflow(instance)
 
 
-@receiver(post_save, sender=Journal)
-def setup_submission_configuration(sender, instance, created, **kwargs):
-    if created:
-        submission_models.SubmissionConfiguration.objects.get_or_create(
-            journal=instance,
-        )
+# @receiver(post_save, sender=Journal)
+# def setup_submission_configuration(sender, instance, created, **kwargs):
+#     if created:
+#         submission_models.SubmissionConfiguration.objects.get_or_create(
+#             journal=instance,
+#         )
 
 
-@receiver(post_save, sender=Journal)
-def setup_licenses(sender, instance, created, **kwargs):
-    if created:
-        install.update_license(
-            instance,
-        )
+# @receiver(post_save, sender=Journal)
+# def setup_licenses(sender, instance, created, **kwargs):
+#     if created:
+#         install.update_license(
+#             instance,
+#         )
 
 
-@receiver(post_save, sender=Journal)
-def setup_submission_items(sender, instance, created, **kwargs):
-    if created:
-        install.setup_submission_items(
-            instance,
-        )
+# @receiver(post_save, sender=Journal)
+# def setup_submission_items(sender, instance, created, **kwargs):
+#     if created:
+#         install.setup_submission_items(
+#             instance,
+#         )
 
 
-@receiver(post_save, sender=Journal)
-def setup_default_form(sender, instance, created, **kwargs):
-    # if this is a new journal and there is not default review for already
-    # create a new one with a default review element.
-    if created and not review_models.ReviewForm.objects.filter(
-            journal=instance,
-    ).exists():
-        instance.setup_default_review_form()
+# @receiver(post_save, sender=Journal)
+# def setup_default_form(sender, instance, created, **kwargs):
+#     # if this is a new journal and there is not default review for already
+#     # create a new one with a default review element.
+#     if created and not review_models.ReviewForm.objects.filter(
+#             journal=instance,
+#     ).exists():
+#         instance.setup_default_review_form()
 
 
 
-@receiver(post_save, sender=Journal)
-def update_issue_display_title(sender, instance, created, **kwargs):
-    for issue in Issue.objects.filter(journal=instance):
-        issue.save()
+# @receiver(post_save, sender=Journal)
+# def update_issue_display_title(sender, instance, created, **kwargs):
+#     for issue in Issue.objects.filter(journal=instance):
+#         issue.save()
 
 
-@receiver(post_save, sender=Journal)
-def setup_journal_file_directory(sender, instance, created, **kwargs):
-    if created:
-        instance.setup_directory()
+# @receiver(post_save, sender=Journal)
+# def setup_journal_file_directory(sender, instance, created, **kwargs):
+#     if created:
+#         instance.setup_directory()
 
 
 def issue_articles_change(sender, **kwargs):
@@ -1516,4 +1516,4 @@ def issue_articles_change(sender, **kwargs):
                     article.save()
 
 
-m2m_changed.connect(issue_articles_change, sender=Issue.articles.through)
+# m2m_changed.connect(issue_articles_change, sender=Issue.articles.through)

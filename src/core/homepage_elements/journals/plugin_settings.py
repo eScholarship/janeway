@@ -32,7 +32,7 @@ def install():
 
 def hook_registry():
     try:
-        install()
+        #install()
         return {
             'yield_homepage_element_context': {
                 'module': 'core.homepage_elements.journals.hooks',
