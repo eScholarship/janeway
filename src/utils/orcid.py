@@ -58,10 +58,9 @@ def build_redirect_uri(site, action='login'):
     :site: Object implementing the AbstractSiteModel interface
     :return: (str) Redirect URI for ORCID requests
     """
-    request = logic.get_current_request()
-
-    return request.site_type.site_url(reverse("core_login_orcid"),
-                                      query={'state': action})
+    # moved the state variable out of the redirect_uri
+    # this is a temporary fix, complete fix is in 1.8
+    return site.site_url(reverse("core_login_orcid"))
 
 def get_orcid_record(orcid):
     try:
