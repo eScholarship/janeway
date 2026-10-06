@@ -17,8 +17,16 @@ from django.conf import settings
 from django.contrib.auth import logout
 from django.contrib import messages
 from django.template.loader import get_template
-from django.db.models import Q
-from django.http import JsonResponse, QueryDict
+from django.db.models import (
+    Case,
+    IntegerField,
+    Max,
+    Q,
+    Value,
+    When,
+)
+from django.db.models.functions import Coalesce
+from django.http import JsonResponse
 from django.forms.models import model_to_dict
 from django.shortcuts import reverse
 from django.utils import timezone
@@ -1258,3 +1266,159 @@ def create_organization_name(request):
             % {"organization": organization_name},
         )
         return organization_name
+
+def resolve_alt_text_target(request):
+    """
+    Resolve the content_type, object_id, file_path, and object instance
+    from the request data (POST or GET). Expects 'model', 'pk', and/or 'file_path'.
+
+    Returns:
+        (content_type, object_id, file_path, obj)
+
+    Raises:
+        ValidationError if model or pk is invalid.
+    """
+    data = request.POST or request.GET
+
+    model = data.get("model")
+    pk = data.get("pk")
+    file_path = data.get("file_path")
+
+    content_type = None
+    object_id = None
+    obj = None
+
+    if model and pk:
+        if "." not in model:
+            raise ValidationError("Model should be in the form 'app_label.model_name'.")
+
+        app_label, model_name = model.split(".")
+        content_type = ContentType.objects.get(
+            app_label=app_label,
+            model=model_name,
+        )
+        object_id = int(pk)
+        obj = content_type.get_object_for_this_type(pk=object_id)
+
+    return content_type, object_id, file_path, obj
+
+
+class RankedOrganizationResults:
+    """
+    A lazy, paginatable list of organizations ranked by how well one of
+    their names matches a search term.
+
+    The ranking is worked out on OrganizationName in a single pass (filter
+    the names, score each one, keep each organization's best score) rather
+    than by joining Organization to all five of its name relations, which
+    multiplies rows and is slow for broad terms like "university".
+    Supports count() and slicing, so it can be handed to a Paginator.
+    """
+
+    def __init__(self, search_term, exclude_custom_labels=False):
+        self.search_term = search_term
+        self.exclude_custom_labels = exclude_custom_labels
+        self._count = None
+
+    def _ranked_ids(self):
+        term = self.search_term
+        names = models.OrganizationName.objects.annotate(
+            org=Coalesce(
+                "ror_display_for",
+                "custom_label_for",
+                "label_for",
+                "alias_for",
+                "acronym_for",
+            )
+        )
+        is_display = Q(ror_display_for__isnull=False) | Q(
+            custom_label_for__isnull=False
+        )
+        organizations = models.Organization.objects
+
+        def ror_id_matches(lookup):
+            return Q(
+                org__in=organizations.filter(**{f"ror_id__{lookup}": term}).values("pk")
+            )
+
+        website_matches = Q(
+            org__in=organizations.filter(website__icontains=term).values("pk")
+        )
+        matching_orgs = (
+            names.filter(value__icontains=term)
+            .order_by()
+            .values("org")
+            .union(
+                organizations.filter(
+                    Q(ror_id__icontains=term) | Q(website__icontains=term)
+                )
+                .order_by()
+                .values("pk")
+            )
+        )
+        if self.exclude_custom_labels:
+            # Leave out organizations created by users rather than from ROR
+            names = names.exclude(
+                org__in=organizations.filter(custom_label__isnull=False).values("pk")
+            )
+        return (
+            names.filter(
+                # The display name of every matching organization is pulled
+                # in as well, so ties can be broken alphabetically and
+                # ROR ID and website matches have a row to be scored on.
+                Q(value__icontains=term) | (is_display & Q(org__in=matching_orgs)),
+            )
+            .values("org")
+            .annotate(
+                relevance=Max(
+                    Case(
+                        When(ror_id_matches("iexact"), then=Value(100)),
+                        When(
+                            Q(acronym_for__isnull=False, value__iexact=term),
+                            then=Value(100),
+                        ),
+                        When(
+                            Q(value__iexact=term) & Q(label_for__isnull=True),
+                            then=Value(90),
+                        ),
+                        When(ror_id_matches("istartswith"), then=Value(80)),
+                        When(
+                            Q(value__istartswith=term) & is_display,
+                            then=Value(70),
+                        ),
+                        When(ror_id_matches("icontains"), then=Value(60)),
+                        When(Q(value__icontains=term) & is_display, then=Value(50)),
+                        When(value__icontains=term, then=Value(40)),
+                        When(website_matches, then=Value(20)),
+                        default=Value(0),
+                        output_field=IntegerField(),
+                    )
+                ),
+                display=Max(Case(When(is_display, then="value"))),
+            )
+            .order_by("-relevance", "display", "org")
+        )
+
+    def count(self):
+        if self._count is None:
+            self._count = self._ranked_ids().count()
+        return self._count
+
+    def __len__(self):
+        return self.count()
+
+    def __getitem__(self, key):
+        if not isinstance(key, slice):
+            return self[key : key + 1][0]
+        ids = [row["org"] for row in self._ranked_ids()[key]]
+        organizations = (
+            models.Organization.objects.filter(pk__in=ids)
+            .select_related("ror_display", "custom_label")
+            .prefetch_related("locations")
+            .in_bulk()
+        )
+        return [organizations[pk] for pk in ids if pk in organizations]
+
+
+def search_organizations(search_term, exclude_custom_labels=False):
+    return RankedOrganizationResults(search_term, exclude_custom_labels)
