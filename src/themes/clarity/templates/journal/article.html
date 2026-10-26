@@ -108,6 +108,8 @@
                     </div>
                 {% endif %}
 
+                {% hook 'article_pdf_viewer' %}
+
                 {% if article_content %}
                     <article>
                         <div itemprop="articleBody" id="main_article">
